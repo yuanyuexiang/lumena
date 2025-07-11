@@ -13,8 +13,11 @@ services:
       - matrix-network
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.service-camaro.entrypoints=websecure"
       - "traefik.http.routers.lumena.rule=Host(`meteor.matrix-net.tech`)"
       - "traefik.http.routers.lumena.service=lumena"
+      - "traefik.http.routers.lumena.middlewares=lumena-stripprefix"
+      - "traefik.http.routers.lumena.tls.certresolver=aliyunresolver"
       - "traefik.http.services.lumena.loadbalancer.server.port=80"
 
 networks:
