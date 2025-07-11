@@ -112,7 +112,7 @@
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             {
-              urls: 'turn:117.72.204.201:3478?transport=tcp',
+              urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
               username: 'matrix',
               credential: 'sual116y'
             }
@@ -213,12 +213,12 @@
         const testPC = new RTCPeerConnection({
           iceServers: [
             {
-              urls: 'turn:117.72.204.201:3478?transport=tcp',
+              urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
               username: 'matrix',
               credential: 'sual116y'
             },
             {
-              urls: 'turn:117.72.204.201:3478?transport=udp',
+              urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
               username: 'matrix',
               credential: 'sual116y'
             }
@@ -342,17 +342,17 @@
           iceServers: [
             // **你的 STUN 服务器配置**
             {
-                urls: 'stun:117.72.204.201:3478'
+                urls: 'stun:coturn.meteor.matrix-net.tech:3478'
             },
             // **你的 TURN 服务器配置 - TCP**
             {
-                urls: 'turn:117.72.204.201:3478?transport=tcp',
+                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
                 username: 'matrix',
                 credential: 'sual116y'
             },
             // **你的 TURN 服务器配置 - UDP**
             {
-                urls: 'turn:117.72.204.201:3478?transport=udp',
+                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
                 username: 'matrix',
                 credential: 'sual116y'
             },
