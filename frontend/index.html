@@ -113,26 +113,26 @@
       // RTCPeerConnection 是 WebRTC 的核心接口，用于建立点对点连接
       // 负责处理音视频流的传输、ICE 协商等
       peer_connection = new RTCPeerConnection(
-        // {
-        //   iceServers: [
-        //     // **你的 STUN 服务器配置**
-        //     {
-        //         urls: 'stun:117.72.204.201:3478' // <-- 替换为你的 STUN 服务器地址和端口
-        //     },
-        //     // **你的 TURN 服务器配置**
-        //     // 注意：TURN 服务器通常需要用户名和密码进行认证，这是在 Coturn 中配置的
-        //     {
-        //         urls: 'turn:117.72.204.201:3478', // <-- 替换为你的 TURN 服务器地址和端口
-        //         username: 'matrix', // <-- 替换为你在 Coturn 配置中设置的用户名
-        //         credential: 'sual116y' // <-- 替换为你在 Coturn 配置中设置的密码
-        //     },
-        //     // **（可选）Google 的公共 STUN 服务器作为备用**
-        //     // 增加连接的鲁棒性，因为它很稳定且广泛可用
-        //     {
-        //         urls: 'stun:stun.l.google.com:19302'
-        //     }
-        //   ]
-        // }
+        {
+          iceServers: [
+            // **你的 STUN 服务器配置**
+            {
+                urls: 'stun:117.72.204.201:3478' // <-- 替换为你的 STUN 服务器地址和端口
+            },
+            // **你的 TURN 服务器配置**
+            // 注意：TURN 服务器通常需要用户名和密码进行认证，这是在 Coturn 中配置的
+            {
+                urls: 'turn:117.72.204.201:3478', // <-- 替换为你的 TURN 服务器地址和端口
+                username: 'matrix', // <-- 替换为你在 Coturn 配置中设置的用户名
+                credential: 'sual116y' // <-- 替换为你在 Coturn 配置中设置的密码
+            },
+            // **（可选）Google 的公共 STUN 服务器作为备用**
+            // 增加连接的鲁棒性，因为它很稳定且广泛可用
+            {
+                urls: 'stun:stun.l.google.com:19302'
+            }
+          ]
+        }
       )
 
       // 3. 监听远端 track 事件（接收到远端媒体流时触发）
