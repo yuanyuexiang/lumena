@@ -60,6 +60,7 @@ jobs:
           path: |
             Dockerfile
             docker-compose.yaml
+            frontend/
 
   # 打包镜像
   build-package:
