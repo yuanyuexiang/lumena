@@ -169,7 +169,7 @@
       stream.getTracks().forEach(track => peer_connection.addTrack(track, stream))
 
       // 6. 建立 WebSocket 连接到后端信令服务器
-      ws = new WebSocket("ws://meteor.matrix-net.tech:8080/websocket")
+      ws = new WebSocket("wss://meteor.matrix-net.tech/websocket")
       //ws = new WebSocket("ws://117.72.204.201:8080/websocket")
 
       // 7. 监听 ICE candidate 事件，将本地 candidate 发送给后端
