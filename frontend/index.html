@@ -291,10 +291,12 @@
             <div class="button-group">
               <button id="testTurnBtn" class="btn">测试 TURN 服务器</button>
               <button id="diagnosisBtn" class="btn">网络诊断</button>
+              <button id="priorityTestBtn" class="btn success">🚀 优先级连接测试</button>
               <button id="forceRelayBtn" class="btn">强制 TURN 模式</button>
             </div>
             <div id="turnTestResult" class="result-box"></div>
             <div id="diagnosisResult" class="result-box"></div>
+            <div id="priorityTestResult" class="result-box"></div>
           </div>
 
           <!-- 媒体源选择 -->
@@ -366,6 +368,245 @@
     let currentStream;
     let forceRelay = false; // 是否强制使用 TURN
     let connectionStatsInterval; // 连接状态检测定时器
+    let optimalConnectionMode = 'auto'; // 最优连接模式：'lan', 'nat', 'relay', 'auto'
+
+    // 优先级连接测试
+    async function runPriorityConnectionTest() {
+      const resultDiv = document.getElementById('priorityTestResult');
+      resultDiv.innerHTML = '<p>🔍 正在进行优先级连接测试...</p>';
+      
+      const testResults = {
+        lan: { available: false, delay: null, quality: 0 },
+        nat: { available: false, delay: null, quality: 0 },
+        relay: { available: false, delay: null, quality: 0 }
+      };
+
+      try {
+        // 1. 测试局域网直连 (Host candidates only)
+        resultDiv.innerHTML += '<p>📍 1/3 测试局域网直连...</p>';
+        testResults.lan = await testConnectionMode('host-only');
+        
+        // 2. 测试NAT穿透 (STUN)
+        resultDiv.innerHTML += '<p>🌐 2/3 测试NAT穿透...</p>';
+        testResults.nat = await testConnectionMode('nat-traversal');
+        
+        // 3. 测试TURN中继
+        resultDiv.innerHTML += '<p>🔄 3/3 测试TURN中继...</p>';
+        testResults.relay = await testConnectionMode('relay-only');
+        
+        // 生成测试报告和建议
+        const report = generatePriorityTestReport(testResults);
+        resultDiv.innerHTML = report;
+        
+      } catch (error) {
+        resultDiv.innerHTML += `<p style="color: red;">测试失败: ${error.message}</p>`;
+      }
+    }
+
+    // 测试特定连接模式
+    async function testConnectionMode(mode) {
+      return new Promise(async (resolve) => {
+        let iceServers = [];
+        let iceTransportPolicy = 'all';
+        
+        // 根据模式配置ICE服务器
+        switch (mode) {
+          case 'host-only':
+            // 只使用本地候选，模拟局域网环境
+            iceServers = [];
+            iceTransportPolicy = 'all';
+            break;
+            
+          case 'nat-traversal':
+            // 使用STUN服务器进行NAT穿透
+            iceServers = [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:coturn.meteor.matrix-net.tech:3478' }
+            ];
+            iceTransportPolicy = 'all';
+            break;
+            
+          case 'relay-only':
+            // 强制使用TURN中继
+            iceServers = [
+              {
+                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+                username: 'matrix',
+                credential: 'sual116y'
+              },
+              {
+                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
+                username: 'matrix',
+                credential: 'sual116y'
+              }
+            ];
+            iceTransportPolicy = 'relay';
+            break;
+        }
+
+        const testPC = new RTCPeerConnection({
+          iceServers,
+          iceTransportPolicy
+        });
+
+        const result = {
+          available: false,
+          delay: null,
+          quality: 0,
+          candidateTypes: []
+        };
+
+        let startTime = Date.now();
+        let candidatesFound = false;
+
+        testPC.onicecandidate = (event) => {
+          if (event.candidate) {
+            candidatesFound = true;
+            result.candidateTypes.push(event.candidate.type);
+            
+            // 计算ICE候选收集延迟
+            if (!result.delay) {
+              result.delay = Date.now() - startTime;
+            }
+            
+            // 根据候选类型判断是否可用
+            switch (mode) {
+              case 'host-only':
+                if (event.candidate.type === 'host') {
+                  result.available = true;
+                  result.quality = 100; // 局域网质量最高
+                }
+                break;
+              case 'nat-traversal':
+                if (event.candidate.type === 'srflx') {
+                  result.available = true;
+                  result.quality = 75; // NAT穿透质量中等
+                }
+                break;
+              case 'relay-only':
+                if (event.candidate.type === 'relay') {
+                  result.available = true;
+                  result.quality = 50; // 中继质量较低但稳定
+                }
+                break;
+            }
+          } else {
+            // ICE收集完成
+            testPC.close();
+            resolve(result);
+          }
+        };
+
+        // 创建数据通道触发ICE收集
+        testPC.createDataChannel('test');
+        const offer = await testPC.createOffer();
+        await testPC.setLocalDescription(offer);
+
+        // 设置超时
+        setTimeout(() => {
+          if (!candidatesFound && !result.available) {
+            result.available = false;
+            result.delay = Date.now() - startTime;
+          }
+          testPC.close();
+          resolve(result);
+        }, 5000);
+      });
+    }
+
+    // 生成优先级测试报告
+    function generatePriorityTestReport(testResults) {
+      let report = '<div style="border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 10px;">';
+      report += '<h4>🎯 优先级连接测试报告</h4>';
+      
+      // 按优先级排序的连接方式
+      const connectionMethods = [
+        { key: 'lan', name: '🏠 局域网直连', priority: 1 },
+        { key: 'nat', name: '🌐 NAT穿透', priority: 2 },
+        { key: 'relay', name: '🔄 TURN中继', priority: 3 }
+      ];
+      
+      report += '<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">';
+      report += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #dee2e6;">优先级</th><th style="padding: 10px; border: 1px solid #dee2e6;">连接方式</th><th style="padding: 10px; border: 1px solid #dee2e6;">状态</th><th style="padding: 10px; border: 1px solid #dee2e6;">延迟</th><th style="padding: 10px; border: 1px solid #dee2e6;">质量评分</th></tr>';
+      
+      let recommendedMode = null;
+      let bestQuality = 0;
+      
+      connectionMethods.forEach(method => {
+        const result = testResults[method.key];
+        const status = result.available ? '✅ 可用' : '❌ 不可用';
+        const delay = result.delay ? `${result.delay}ms` : '-';
+        const quality = result.available ? `${result.quality}/100` : '-';
+        
+        const rowColor = result.available ? '#d4edda' : '#f8d7da';
+        report += `<tr style="background: ${rowColor};"><td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${method.priority}</td><td style="padding: 8px; border: 1px solid #dee2e6;">${method.name}</td><td style="padding: 8px; border: 1px solid #dee2e6;">${status}</td><td style="padding: 8px; border: 1px solid #dee2e6;">${delay}</td><td style="padding: 8px; border: 1px solid #dee2e6;">${quality}</td></tr>`;
+        
+        // 找到最优连接方式（按优先级和质量）
+        if (result.available && (!recommendedMode || method.priority < connectionMethods.find(m => m.key === recommendedMode).priority)) {
+          recommendedMode = method.key;
+          bestQuality = result.quality;
+        }
+      });
+      
+      report += '</table>';
+      
+      // 推荐方案
+      if (recommendedMode) {
+        const recommendedMethod = connectionMethods.find(m => m.key === recommendedMode);
+        optimalConnectionMode = recommendedMode; // 保存最优模式
+        
+        report += `<div style="background: #d1ecf1; padding: 15px; border-radius: 8px; margin: 15px 0;">`;
+        report += `<h5 style="color: #0c5460; margin: 0 0 10px 0;">💡 推荐连接方式</h5>`;
+        report += `<p style="margin: 0;"><strong>${recommendedMethod.name}</strong> - 质量评分: ${bestQuality}/100</p>`;
+        report += `<button id="applyOptimalMode" class="btn success" style="margin-top: 10px;">🚀 应用最优配置</button>`;
+        report += `</div>`;
+      } else {
+        report += `<div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin: 15px 0;">`;
+        report += `<h5 style="color: #721c24; margin: 0 0 10px 0;">⚠️ 连接问题</h5>`;
+        report += `<p style="margin: 0;">所有连接方式均不可用，请检查网络配置和TURN服务器状态。</p>`;
+        report += `</div>`;
+      }
+      
+      report += '</div>';
+      return report;
+    }
+
+    // 应用最优连接模式
+    function applyOptimalConnectionMode() {
+      if (!optimalConnectionMode || optimalConnectionMode === 'auto') return;
+      
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      
+      switch (optimalConnectionMode) {
+        case 'lan':
+          // 应用局域网直连配置
+          forceRelay = false;
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🏠 已切换到局域网直连模式</p>`;
+          break;
+        case 'nat':
+          // 应用NAT穿透配置
+          forceRelay = false;
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🌐 已切换到NAT穿透模式</p>`;
+          break;
+        case 'relay':
+          // 应用TURN中继配置
+          forceRelay = true;
+          document.getElementById('forceRelayBtn').textContent = '🔄 取消强制 TURN';
+          document.getElementById('forceRelayBtn').className = 'btn danger';
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🔄 已切换到TURN中继模式</p>`;
+          break;
+      }
+      
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      // 如果已有连接，重新初始化
+      if (peer_connection && currentStream) {
+        stopConnectionMonitoring();
+        peer_connection.close();
+        initializeWebRTC(currentStream);
+      }
+    }
 
     // 检测连接类型和状态
     async function checkConnectionType() {
@@ -822,41 +1063,61 @@
     function initializeWebRTC(stream) {
       currentStream = stream;
       
-      // 2. 创建 WebRTC 的 RTCPeerConnection 实例 
-      // RTCPeerConnection 是 WebRTC 的核心接口，用于建立点对点连接
-      // 负责处理音视频流的传输、ICE 协商等
-      peer_connection = new RTCPeerConnection(
-        {
-          iceServers: [
-            // **你的 STUN 服务器配置**
-            {
-                urls: 'stun:coturn.meteor.matrix-net.tech:3478'
-            },
-            // **你的 TURN 服务器配置 - TCP**
-            {
-                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
-                username: 'matrix',
-                credential: 'sual116y'
-            },
-            // **你的 TURN 服务器配置 - UDP**
-            {
-                urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
-                username: 'matrix',
-                credential: 'sual116y'
-            },
-            // **Google 的公共 STUN 服务器作为备用**
-            {
-                urls: 'stun:stun.l.google.com:19302'
-            },
-            // **Cloudflare STUN 服务器作为备用**
-            {
-                urls: 'stun:stun.cloudflare.com:3478'
-            }
-          ],
-          // 根据 forceRelay 标志决定是否强制使用 TURN
-          iceTransportPolicy: forceRelay ? 'relay' : 'all'
-        }
-      )
+      // 根据最优连接模式配置ICE服务器
+      let iceServers = [];
+      let iceTransportPolicy = 'all';
+      
+      if (optimalConnectionMode === 'lan') {
+        // 局域网模式：尽量使用本地候选
+        iceServers = [
+          { urls: 'stun:coturn.meteor.matrix-net.tech:3478' }
+        ];
+      } else if (optimalConnectionMode === 'relay' || forceRelay) {
+        // 中继模式：强制使用TURN
+        iceServers = [
+          {
+            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+            username: 'matrix',
+            credential: 'sual116y'
+          },
+          {
+            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
+            username: 'matrix',
+            credential: 'sual116y'
+          }
+        ];
+        iceTransportPolicy = 'relay';
+      } else {
+        // 默认模式或NAT穿透模式：使用完整配置
+        iceServers = [
+          { urls: 'stun:coturn.meteor.matrix-net.tech:3478' },
+          {
+            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+            username: 'matrix',
+            credential: 'sual116y'
+          },
+          {
+            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
+            username: 'matrix',
+            credential: 'sual116y'
+          },
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun.cloudflare.com:3478' }
+        ];
+        iceTransportPolicy = forceRelay ? 'relay' : 'all';
+      }
+      
+      // 创建 WebRTC 的 RTCPeerConnection 实例
+      peer_connection = new RTCPeerConnection({
+        iceServers,
+        iceTransportPolicy
+      })
+
+      // 记录当前使用的配置
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p>[${timestamp}] 🔧 使用连接模式: ${optimalConnectionMode === 'auto' ? '自动' : optimalConnectionMode} (${iceTransportPolicy})</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
 
       // 3. 监听远端 track 事件（接收到远端媒体流时触发）
       peer_connection.ontrack = function (event) {
@@ -1030,6 +1291,16 @@
 
       // 网络诊断按钮
       document.getElementById('diagnosisBtn').addEventListener('click', runNetworkDiagnosis);
+
+      // 优先级连接测试按钮
+      document.getElementById('priorityTestBtn').addEventListener('click', runPriorityConnectionTest);
+
+      // 动态绑定"应用最优配置"按钮（因为是动态生成的）
+      document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'applyOptimalMode') {
+          applyOptimalConnectionMode();
+        }
+      });
 
       // 强制 TURN 模式按钮
       document.getElementById('forceRelayBtn').addEventListener('click', function() {
