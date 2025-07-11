@@ -79,7 +79,7 @@ jobs:
           #path: Dockerfile lumena
         
       - name: 目录文件
-        run: ls -al .next/standalone/node_modules/
+        run: ls -al
 
       # 使用时间戳
       - name: Print timestamp
