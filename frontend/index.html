@@ -9,6 +9,11 @@
     <meta charset="utf-8">
   </head>
   <body>
+    <h3> TURN 服务器测试 </h3>
+    <button id="testTurnBtn">测试 TURN 服务器连通性</button>
+    <div id="turnTestResult"></div>
+    <br />
+
     <h3> 媒体源选择 </h3>
     <button id="cameraBtn">使用摄像头</button>
     <button id="screenBtn">屏幕共享</button>
@@ -29,6 +34,57 @@
     let peer_connection;
     let ws;
     let currentStream;
+
+    // 测试 TURN 服务器连通性
+    async function testTurnServer() {
+      const resultDiv = document.getElementById('turnTestResult');
+      resultDiv.innerHTML = '<p>正在测试 TURN 服务器连通性...</p>';
+      
+      try {
+        const testPC = new RTCPeerConnection({
+          iceServers: [
+            {
+              urls: 'turn:117.72.204.201:3478?transport=tcp',
+              username: 'matrix',
+              credential: 'sual116y'
+            },
+            {
+              urls: 'turn:117.72.204.201:3478?transport=udp',
+              username: 'matrix',
+              credential: 'sual116y'
+            }
+          ],
+          iceTransportPolicy: 'relay' // 强制只使用 TURN
+        });
+
+        let turnCandidateFound = false;
+        
+        testPC.onicecandidate = (event) => {
+          if (event.candidate && event.candidate.type === 'relay') {
+            turnCandidateFound = true;
+            resultDiv.innerHTML = '<p style="color: green;">✓ TURN 服务器连接成功！</p>';
+            console.log('TURN candidate found:', event.candidate);
+          }
+        };
+
+        // 创建数据通道触发 ICE 收集
+        testPC.createDataChannel('test');
+        const offer = await testPC.createOffer();
+        await testPC.setLocalDescription(offer);
+
+        // 等待 ICE 收集完成
+        setTimeout(() => {
+          if (!turnCandidateFound) {
+            resultDiv.innerHTML = '<p style="color: red;">✗ TURN 服务器连接失败！请检查：<br/>1. 服务器地址是否正确<br/>2. 用户名密码是否正确<br/>3. 端口是否被防火墙阻塞<br/>4. TURN 服务器是否正常运行</p>';
+          }
+          testPC.close();
+        }, 5000);
+
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">测试失败: ${error.message}</p>`;
+        console.error('TURN test error:', error);
+      }
+    }
 
     // 获取摄像头流
     async function getCameraStream() {
@@ -117,21 +173,31 @@
           iceServers: [
             // **你的 STUN 服务器配置**
             {
-                urls: 'stun:117.72.204.201:3478' // <-- 替换为你的 STUN 服务器地址和端口
+                urls: 'stun:117.72.204.201:3478'
             },
-            // **你的 TURN 服务器配置**
-            // 注意：TURN 服务器通常需要用户名和密码进行认证，这是在 Coturn 中配置的
+            // **你的 TURN 服务器配置 - TCP**
             {
-                urls: 'turn:117.72.204.201:3478', // <-- 替换为你的 TURN 服务器地址和端口
-                username: 'matrix', // <-- 替换为你在 Coturn 配置中设置的用户名
-                credential: 'sual116y' // <-- 替换为你在 Coturn 配置中设置的密码
+                urls: 'turn:117.72.204.201:3478?transport=tcp',
+                username: 'matrix',
+                credential: 'sual116y'
             },
-            // **（可选）Google 的公共 STUN 服务器作为备用**
-            // 增加连接的鲁棒性，因为它很稳定且广泛可用
+            // **你的 TURN 服务器配置 - UDP**
+            {
+                urls: 'turn:117.72.204.201:3478?transport=udp',
+                username: 'matrix',
+                credential: 'sual116y'
+            },
+            // **Google 的公共 STUN 服务器作为备用**
             {
                 urls: 'stun:stun.l.google.com:19302'
+            },
+            // **Cloudflare STUN 服务器作为备用**
+            {
+                urls: 'stun:stun.cloudflare.com:3478'
             }
-          ]
+          ],
+          // 强制使用 TURN 服务器（用于测试）
+          iceTransportPolicy: 'all' // 可以改为 'relay' 强制只使用 TURN
         }
       )
 
@@ -175,11 +241,39 @@
       // 7. 监听 ICE candidate 事件，将本地 candidate 发送给后端
       peer_connection.onicecandidate = e => {
         if (!e.candidate) {
+          console.log('ICE gathering complete')
           return
         }
+        // 记录 ICE candidate 类型以便调试
+        console.log('ICE Candidate:', {
+          type: e.candidate.type,
+          protocol: e.candidate.protocol,
+          address: e.candidate.address,
+          port: e.candidate.port,
+          candidate: e.candidate.candidate
+        })
         // 发送 candidate 消息，data 字段为字符串化的 candidate 对象
-        console.log('---------------onicecandidate', e.candidate)
         ws.send(JSON.stringify({event: 'candidate', data: JSON.stringify(e.candidate)}))
+      }
+
+      // 监听 ICE 连接状态变化
+      peer_connection.oniceconnectionstatechange = () => {
+        console.log('ICE Connection State:', peer_connection.iceConnectionState)
+        const logDiv = document.getElementById('logs')
+        logDiv.innerHTML += `<p>ICE 连接状态: ${peer_connection.iceConnectionState}</p>`
+        
+        if (peer_connection.iceConnectionState === 'failed') {
+          logDiv.innerHTML += '<p style="color: red;">ICE 连接失败！可能的原因：1. TURN服务器不可用 2. 网络防火墙阻塞 3. NAT类型不兼容</p>'
+        } else if (peer_connection.iceConnectionState === 'connected') {
+          logDiv.innerHTML += '<p style="color: green;">ICE 连接成功！</p>'
+        }
+      }
+
+      // 监听连接状态变化
+      peer_connection.onconnectionstatechange = () => {
+        console.log('Connection State:', peer_connection.connectionState)
+        const logDiv = document.getElementById('logs')
+        logDiv.innerHTML += `<p>连接状态: ${peer_connection.connectionState}</p>`
       }
 
       // 8. WebSocket 关闭时弹窗提示
@@ -240,12 +334,19 @@
           case 'candidate':
             // 收到服务器转发的 candidate，解析后加入 RTCPeerConnection
             let candidate = JSON.parse(msg.data)
-            console.log('~~~~~~~~~~~~~received candidate', candidate)
+            console.log('收到远端 ICE Candidate:', {
+              type: candidate.type,
+              protocol: candidate.protocol,
+              address: candidate.address,
+              port: candidate.port
+            })
             // 如果 candidate 解析失败，输出日志并返回
             if (!candidate) {
               return console.log('failed to parse candidate')
             }
-            peer_connection.addIceCandidate(candidate)
+            peer_connection.addIceCandidate(candidate).catch(err => {
+              console.error('添加 ICE candidate 失败:', err)
+            })
         }
       }
 
@@ -257,6 +358,9 @@
 
     // 页面加载完成后设置事件监听器
     document.addEventListener('DOMContentLoaded', function() {
+      // TURN 服务器测试按钮
+      document.getElementById('testTurnBtn').addEventListener('click', testTurnServer);
+
       // 摄像头按钮事件
       document.getElementById('cameraBtn').addEventListener('click', function() {
         if (peer_connection) {
