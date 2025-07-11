@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+  <!--
+    SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
+    SPDX-License-Identifier: MIT
+  -->
+
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <h3> 媒体源选择 </h3>
+    <button id="cameraBtn">使用摄像头</button>
+    <button id="screenBtn">屏幕共享</button>
+    <span id="currentSource">当前：未选择</span>
+    <br /><br />
+
+    <h3> 本地视频 </h3>
+    <video id="localVideo" width="320" height="240" autoplay muted></video> <br />
+
+    <h3> 远程视频 </h3>
+    <div id="remoteVideos"></div> <br />
+
+    <h3> 日志 </h3>
+    <div id="logs"></div>
+  </body>
+
+  <script>
+    let peer_connection;
+    let ws;
+    let currentStream;
+
+    // 获取摄像头流
+    async function getCameraStream() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        document.getElementById('currentSource').textContent = '当前：摄像头';
+        return stream;
+      } catch (error) {
+        console.error('获取摄像头失败:', error);
+        window.alert('获取摄像头失败: ' + error.message);
+        throw error;
+      }
+    }
+
+    // 获取屏幕共享流
+    async function getScreenStream() {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+        document.getElementById('currentSource').textContent = '当前：屏幕共享';
+        return stream;
+      } catch (error) {
+        console.error('获取屏幕共享失败:', error);
+        window.alert('获取屏幕共享失败: ' + error.message);
+        throw error;
+      }
+    }
+
+    // 替换媒体流
+    async function replaceMediaStream(getStreamFunction) {
+      try {
+        const newStream = await getStreamFunction();
+        
+        // 如果已有连接，替换轨道
+        if (peer_connection && currentStream) {
+          // 移除旧的轨道
+          const senders = peer_connection.getSenders();
+          for (const sender of senders) {
+            if (sender.track) {
+              peer_connection.removeTrack(sender);
+            }
+          }
+          
+          // 添加新的轨道
+          newStream.getTracks().forEach(track => {
+            peer_connection.addTrack(track, newStream);
+          });
+        }
+
+        // 停止旧流
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        // 更新本地视频显示
+        document.getElementById('localVideo').srcObject = newStream;
+        currentStream = newStream;
+
+        // 监听屏幕共享结束事件
+        if (getStreamFunction === getScreenStream) {
+          newStream.getVideoTracks()[0].addEventListener('ended', () => {
+            console.log('屏幕共享已结束，切换回摄像头');
+            replaceMediaStream(getCameraStream);
+          });
+        }
+
+      } catch (error) {
+        console.error('替换媒体流失败:', error);
+      }
+    }
+
+    // 初始化WebRTC连接
+    function initializeWebRTC(stream) {
+      currentStream = stream;
+      
+      // 2. 创建 WebRTC 的 RTCPeerConnection 实例 
+      // RTCPeerConnection 是 WebRTC 的核心接口，用于建立点对点连接
+      // 负责处理音视频流的传输、ICE 协商等
+      peer_connection = new RTCPeerConnection(
+        // {
+        //   iceServers: [
+        //     // **你的 STUN 服务器配置**
+        //     {
+        //         urls: 'stun:117.72.204.201:3478' // <-- 替换为你的 STUN 服务器地址和端口
+        //     },
+        //     // **你的 TURN 服务器配置**
+        //     // 注意：TURN 服务器通常需要用户名和密码进行认证，这是在 Coturn 中配置的
+        //     {
+        //         urls: 'turn:117.72.204.201:3478', // <-- 替换为你的 TURN 服务器地址和端口
+        //         username: 'matrix', // <-- 替换为你在 Coturn 配置中设置的用户名
+        //         credential: 'sual116y' // <-- 替换为你在 Coturn 配置中设置的密码
+        //     },
+        //     // **（可选）Google 的公共 STUN 服务器作为备用**
+        //     // 增加连接的鲁棒性，因为它很稳定且广泛可用
+        //     {
+        //         urls: 'stun:stun.l.google.com:19302'
+        //     }
+        //   ]
+        // }
+      )
+
+      // 3. 监听远端 track 事件（接收到远端媒体流时触发）
+      peer_connection.ontrack = function (event) {
+        // 只处理视频轨道，忽略音频
+        console.log('ontrack', event)
+        if (event.track.kind === 'audio') {
+          return
+        }
+
+        // 创建 video 元素用于播放远端视频
+        let el = document.createElement(event.track.kind)
+        el.srcObject = event.streams[0]
+        el.autoplay = true
+        el.controls = true
+        document.getElementById('remoteVideos').appendChild(el)
+
+        // 远端 track 静音时尝试播放（兼容部分浏览器策略）
+        event.track.onmute = function(event) {
+          el.play()
+        }
+
+        // 远端流移除 track 时，移除 video 元素
+        event.streams[0].onremovetrack = ({track}) => {
+          if (el.parentNode) {
+            el.parentNode.removeChild(el)
+          }
+        }
+      }
+
+      // 4. 显示本地视频流
+      document.getElementById('localVideo').srcObject = stream
+      // 5. 将本地音视频轨道添加到 RTCPeerConnection
+      stream.getTracks().forEach(track => peer_connection.addTrack(track, stream))
+
+      // 6. 建立 WebSocket 连接到后端信令服务器
+      ws = new WebSocket("ws://meteor.matrix-net.tech:8080/websocket")
+      //ws = new WebSocket("ws://117.72.204.201:8080/websocket")
+
+      // 7. 监听 ICE candidate 事件，将本地 candidate 发送给后端
+      peer_connection.onicecandidate = e => {
+        if (!e.candidate) {
+          return
+        }
+        // 发送 candidate 消息，data 字段为字符串化的 candidate 对象
+        console.log('---------------onicecandidate', e.candidate)
+        ws.send(JSON.stringify({event: 'candidate', data: JSON.stringify(e.candidate)}))
+      }
+
+      // 8. WebSocket 关闭时弹窗提示
+      ws.onclose = function(evt) {
+        window.alert("Websocket has closed")
+      }
+
+      // 9. WebSocket 收到消息时的处理逻辑
+      ws.onmessage = function(evt) {
+        // 解析收到的 JSON 消息
+        let msg = JSON.parse(evt.data)
+        // 输出日志到页面
+        console.log('ws message', msg)
+        if (!msg) {
+          return console.log('failed to parse msg')
+        }
+
+        // 根据 event 字段类型分支处理
+        switch (msg.event) {
+          case 'paired':
+            // 收到 'paired' 事件，根据 data 判断是否为发起方
+            // data 为 "true" 表示是发起方，需要创建并发送 offer
+            if (msg.data === "true") {
+              console.log("I am the initiator, creating offer...")
+              peer_connection.createOffer().then(offer => {
+                peer_connection.setLocalDescription(offer)
+                ws.send(JSON.stringify({event: 'offer', data: JSON.stringify(offer)}))
+              })
+            } else {
+              console.log("I am the receiver, waiting for offer...")
+            }
+            return
+
+          case 'offer':
+            // 收到服务器发来的 offer，解析后设置为远端描述
+            let offer = JSON.parse(msg.data)
+            if (!offer) {
+              return console.log('failed to parse offer')
+            }
+            console.log("Received offer, creating answer...")
+            peer_connection.setRemoteDescription(offer)
+            // 创建 answer 并发送回服务器
+            peer_connection.createAnswer().then(answer => {
+              peer_connection.setLocalDescription(answer)
+              ws.send(JSON.stringify({event: 'answer', data: JSON.stringify(answer)}))
+            })
+            return
+          
+          case 'answer':
+            // 收到服务器转发的 answer，解析后设置为远端描述
+            let answer = JSON.parse(msg.data)
+            if (!answer) {
+              return console.log('failed to parse answer')
+            }
+            peer_connection.setRemoteDescription(answer)
+            return
+
+          case 'candidate':
+            // 收到服务器转发的 candidate，解析后加入 RTCPeerConnection
+            let candidate = JSON.parse(msg.data)
+            console.log('~~~~~~~~~~~~~received candidate', candidate)
+            // 如果 candidate 解析失败，输出日志并返回
+            if (!candidate) {
+              return console.log('failed to parse candidate')
+            }
+            peer_connection.addIceCandidate(candidate)
+        }
+      }
+
+      // 10. WebSocket 发生错误时输出日志
+      ws.onerror = function(evt) {
+        console.log("ERROR: " + evt.data)
+      }
+    }
+
+    // 页面加载完成后设置事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+      // 摄像头按钮事件
+      document.getElementById('cameraBtn').addEventListener('click', function() {
+        if (peer_connection) {
+          replaceMediaStream(getCameraStream);
+        } else {
+          getCameraStream().then(stream => {
+            initializeWebRTC(stream);
+          }).catch(console.error);
+        }
+      });
+
+      // 屏幕共享按钮事件
+      document.getElementById('screenBtn').addEventListener('click', function() {
+        if (peer_connection) {
+          replaceMediaStream(getScreenStream);
+        } else {
+          getScreenStream().then(stream => {
+            initializeWebRTC(stream);
+          }).catch(console.error);
+        }
+      });
+
+      // 默认使用摄像头
+      getCameraStream().then(stream => {
+        initializeWebRTC(stream);
+      }).catch(console.error);
+    });
+  </script>
+</html>
