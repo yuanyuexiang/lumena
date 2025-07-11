@@ -14,6 +14,12 @@
     <div id="turnTestResult"></div>
     <br />
 
+    <h3> 网络诊断 </h3>
+    <button id="diagnosisBtn">开始网络诊断</button>
+    <button id="forceRelayBtn">强制使用 TURN 模式</button>
+    <div id="diagnosisResult"></div>
+    <br />
+
     <h3> 媒体源选择 </h3>
     <button id="cameraBtn">使用摄像头</button>
     <button id="screenBtn">屏幕共享</button>
@@ -34,6 +40,169 @@
     let peer_connection;
     let ws;
     let currentStream;
+    let forceRelay = false; // 是否强制使用 TURN
+
+    // 网络诊断功能
+    async function runNetworkDiagnosis() {
+      const resultDiv = document.getElementById('diagnosisResult');
+      resultDiv.innerHTML = '<p>正在进行网络诊断...</p>';
+      
+      try {
+        // 1. 检测本地网络信息
+        const localInfo = await getLocalNetworkInfo();
+        
+        // 2. 测试不同类型的 ICE candidate
+        const iceResults = await testICECandidates();
+        
+        // 3. 生成诊断报告
+        const report = generateDiagnosisReport(localInfo, iceResults);
+        resultDiv.innerHTML = report;
+        
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">诊断失败: ${error.message}</p>`;
+      }
+    }
+
+    // 获取本地网络信息
+    async function getLocalNetworkInfo() {
+      return new Promise((resolve) => {
+        const testPC = new RTCPeerConnection();
+        const info = {
+          localIPs: [],
+          networkType: 'unknown'
+        };
+
+        testPC.onicecandidate = (event) => {
+          if (event.candidate) {
+            const candidate = event.candidate.candidate;
+            const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+            if (ipMatch && !info.localIPs.includes(ipMatch[1])) {
+              info.localIPs.push(ipMatch[1]);
+            }
+          } else {
+            // ICE 收集完成
+            testPC.close();
+            resolve(info);
+          }
+        };
+
+        testPC.createDataChannel('test');
+        testPC.createOffer().then(offer => {
+          testPC.setLocalDescription(offer);
+        });
+
+        // 超时处理
+        setTimeout(() => {
+          testPC.close();
+          resolve(info);
+        }, 3000);
+      });
+    }
+
+    // 测试不同类型的 ICE candidates
+    async function testICECandidates() {
+      const results = {
+        host: false,
+        srflx: false,
+        relay: false
+      };
+
+      return new Promise((resolve) => {
+        const testPC = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            {
+              urls: 'turn:117.72.204.201:3478?transport=tcp',
+              username: 'matrix',
+              credential: 'sual116y'
+            }
+          ]
+        });
+
+        testPC.onicecandidate = (event) => {
+          if (event.candidate) {
+            const type = event.candidate.type;
+            if (type === 'host') results.host = true;
+            if (type === 'srflx') results.srflx = true;
+            if (type === 'relay') results.relay = true;
+          } else {
+            testPC.close();
+            resolve(results);
+          }
+        };
+
+        testPC.createDataChannel('test');
+        testPC.createOffer().then(offer => {
+          testPC.setLocalDescription(offer);
+        });
+
+        setTimeout(() => {
+          testPC.close();
+          resolve(results);
+        }, 5000);
+      });
+    }
+
+    // 生成诊断报告
+    function generateDiagnosisReport(localInfo, iceResults) {
+      let report = '<div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">';
+      report += '<h4>📊 网络诊断报告</h4>';
+      
+      // 本地 IP 信息
+      report += '<p><strong>本地 IP 地址:</strong></p><ul>';
+      localInfo.localIPs.forEach(ip => {
+        const isPrivate = isPrivateIP(ip);
+        report += `<li>${ip} ${isPrivate ? '(内网)' : '(公网)'}</li>`;
+      });
+      report += '</ul>';
+
+      // ICE candidate 支持情况
+      report += '<p><strong>ICE Candidate 支持:</strong></p><ul>';
+      report += `<li>Host (本地): ${iceResults.host ? '✓' : '✗'}</li>`;
+      report += `<li>Server Reflexive (STUN): ${iceResults.srflx ? '✓' : '✗'}</li>`;
+      report += `<li>Relay (TURN): ${iceResults.relay ? '✓' : '✗'}</li>`;
+      report += '</ul>';
+
+      // NAT 类型推断
+      let natType = 'Unknown';
+      if (iceResults.host && iceResults.srflx && iceResults.relay) {
+        natType = 'Open Internet / Full Cone NAT';
+      } else if (iceResults.srflx && iceResults.relay) {
+        natType = 'Symmetric NAT (需要 TURN)';
+      } else if (iceResults.host && iceResults.srflx) {
+        natType = 'Restricted Cone NAT';
+      } else if (iceResults.relay) {
+        natType = 'Strict NAT (仅 TURN 可用)';
+      }
+
+      report += `<p><strong>推断 NAT 类型:</strong> ${natType}</p>`;
+
+      // 建议
+      report += '<p><strong>跨网络通信建议:</strong></p><ul>';
+      if (iceResults.relay) {
+        report += '<li style="color: green;">✓ TURN 服务器可用，跨网络通信应该正常</li>';
+      } else {
+        report += '<li style="color: red;">✗ TURN 服务器不可用，跨网络通信可能失败</li>';
+      }
+      
+      if (!iceResults.srflx) {
+        report += '<li style="color: orange;">⚠ STUN 服务器不可用，可能影响 NAT 穿透</li>';
+      }
+
+      report += '</ul></div>';
+      return report;
+    }
+
+    // 判断是否为内网 IP
+    function isPrivateIP(ip) {
+      const parts = ip.split('.').map(Number);
+      return (
+        (parts[0] === 10) ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 192 && parts[1] === 168) ||
+        (parts[0] === 127)
+      );
+    }
 
     // 测试 TURN 服务器连通性
     async function testTurnServer() {
@@ -196,8 +365,8 @@
                 urls: 'stun:stun.cloudflare.com:3478'
             }
           ],
-          // 强制使用 TURN 服务器（用于测试）
-          iceTransportPolicy: 'all' // 可以改为 'relay' 强制只使用 TURN
+          // 根据 forceRelay 标志决定是否强制使用 TURN
+          iceTransportPolicy: forceRelay ? 'relay' : 'all'
         }
       )
 
@@ -360,6 +529,25 @@
     document.addEventListener('DOMContentLoaded', function() {
       // TURN 服务器测试按钮
       document.getElementById('testTurnBtn').addEventListener('click', testTurnServer);
+
+      // 网络诊断按钮
+      document.getElementById('diagnosisBtn').addEventListener('click', runNetworkDiagnosis);
+
+      // 强制 TURN 模式按钮
+      document.getElementById('forceRelayBtn').addEventListener('click', function() {
+        forceRelay = !forceRelay;
+        this.textContent = forceRelay ? '取消强制 TURN 模式' : '强制使用 TURN 模式';
+        this.style.backgroundColor = forceRelay ? '#ff6b6b' : '';
+        
+        const logDiv = document.getElementById('logs');
+        logDiv.innerHTML += `<p>模式切换: ${forceRelay ? '强制 TURN 模式' : '自动模式'}</p>`;
+        
+        // 如果已有连接，重新初始化
+        if (peer_connection && currentStream) {
+          peer_connection.close();
+          initializeWebRTC(currentStream);
+        }
+      });
 
       // 摄像头按钮事件
       document.getElementById('cameraBtn').addEventListener('click', function() {
