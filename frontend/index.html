@@ -32,6 +32,15 @@
     <h3> 远程视频 </h3>
     <div id="remoteVideos"></div> <br />
 
+    <h3> 连接状态 </h3>
+    <div id="connectionInfo" style="border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
+      <p><strong>连接方式:</strong> <span id="connectionType">未连接</span></p>
+      <p><strong>本地候选:</strong> <span id="localCandidate">-</span></p>
+      <p><strong>远程候选:</strong> <span id="remoteCandidate">-</span></p>
+      <p><strong>网络延迟:</strong> <span id="networkDelay">-</span></p>
+    </div>
+    <br />
+
     <h3> 日志 </h3>
     <div id="logs"></div>
   </body>
@@ -41,6 +50,144 @@
     let ws;
     let currentStream;
     let forceRelay = false; // 是否强制使用 TURN
+    let connectionStatsInterval; // 连接状态检测定时器
+
+    // 检测连接类型和状态
+    async function checkConnectionType() {
+      if (!peer_connection) return;
+
+      try {
+        const stats = await peer_connection.getStats();
+        let localCandidate = null;
+        let remoteCandidate = null;
+        let connectionType = '未知';
+        let rtt = null;
+
+        stats.forEach(report => {
+          // 获取本地候选信息
+          if (report.type === 'local-candidate') {
+            localCandidate = report;
+          }
+          // 获取远程候选信息
+          if (report.type === 'remote-candidate') {
+            remoteCandidate = report;
+          }
+          // 获取候选对信息
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            // 根据候选类型判断连接方式
+            const localType = getLocalCandidateType(report.localCandidateId, stats);
+            const remoteType = getRemoteCandidateType(report.remoteCandidateId, stats);
+            
+            connectionType = determineConnectionType(localType, remoteType);
+            
+            // 获取网络延迟
+            if (report.currentRoundTripTime) {
+              rtt = Math.round(report.currentRoundTripTime * 1000); // 转换为毫秒
+            }
+          }
+        });
+
+        // 更新UI显示
+        updateConnectionInfo(connectionType, localCandidate, remoteCandidate, rtt);
+
+      } catch (error) {
+        console.error('获取连接统计失败:', error);
+      }
+    }
+
+    // 获取本地候选类型
+    function getLocalCandidateType(candidateId, stats) {
+      for (let [id, report] of stats) {
+        if (report.id === candidateId && report.type === 'local-candidate') {
+          return report.candidateType;
+        }
+      }
+      return 'unknown';
+    }
+
+    // 获取远程候选类型
+    function getRemoteCandidateType(candidateId, stats) {
+      for (let [id, report] of stats) {
+        if (report.id === candidateId && report.type === 'remote-candidate') {
+          return report.candidateType;
+        }
+      }
+      return 'unknown';
+    }
+
+    // 判断连接类型
+    function determineConnectionType(localType, remoteType) {
+      console.log('Local candidate type:', localType, 'Remote candidate type:', remoteType);
+      
+      // 如果任一方使用 relay，则是 TURN 转发
+      if (localType === 'relay' || remoteType === 'relay') {
+        return '🔄 TURN 转发';
+      }
+      
+      // 如果都是 host，则是直接连接（局域网）
+      if (localType === 'host' && remoteType === 'host') {
+        return '🏠 局域网直连';
+      }
+      
+      // 如果有 srflx（服务器反射），则是通过 NAT
+      if (localType === 'srflx' || remoteType === 'srflx') {
+        return '🌐 NAT 穿透';
+      }
+      
+      // 如果有 prflx（对等反射），也是 NAT 穿透的一种
+      if (localType === 'prflx' || remoteType === 'prflx') {
+        return '🌐 NAT 穿透 (对等反射)';
+      }
+      
+      return `❓ 未知 (${localType}/${remoteType})`;
+    }
+
+    // 更新连接信息显示
+    function updateConnectionInfo(connectionType, localCandidate, remoteCandidate, rtt) {
+      document.getElementById('connectionType').textContent = connectionType;
+      
+      // 更新本地候选信息
+      if (localCandidate) {
+        const localInfo = `${localCandidate.candidateType} (${localCandidate.protocol}) ${localCandidate.address}:${localCandidate.port}`;
+        document.getElementById('localCandidate').textContent = localInfo;
+      }
+      
+      // 更新远程候选信息
+      if (remoteCandidate) {
+        const remoteInfo = `${remoteCandidate.candidateType} (${remoteCandidate.protocol}) ${remoteCandidate.address}:${remoteCandidate.port}`;
+        document.getElementById('remoteCandidate').textContent = remoteInfo;
+      }
+      
+      // 更新网络延迟
+      if (rtt !== null) {
+        document.getElementById('networkDelay').textContent = `${rtt} ms`;
+      }
+    }
+
+    // 开始连接状态监控
+    function startConnectionMonitoring() {
+      if (connectionStatsInterval) {
+        clearInterval(connectionStatsInterval);
+      }
+      
+      connectionStatsInterval = setInterval(() => {
+        checkConnectionType();
+      }, 2000); // 每2秒检查一次
+    }
+
+    // 停止连接状态监控
+    function stopConnectionMonitoring() {
+      if (connectionStatsInterval) {
+        clearInterval(connectionStatsInterval);
+        connectionStatsInterval = null;
+      }
+      
+      // 重置显示
+      document.getElementById('connectionType').textContent = '未连接';
+      document.getElementById('localCandidate').textContent = '-';
+      document.getElementById('remoteCandidate').textContent = '-';
+      document.getElementById('networkDelay').textContent = '-';
+    }
 
     // 网络诊断功能
     async function runNetworkDiagnosis() {
@@ -433,8 +580,13 @@
         
         if (peer_connection.iceConnectionState === 'failed') {
           logDiv.innerHTML += '<p style="color: red;">ICE 连接失败！可能的原因：1. TURN服务器不可用 2. 网络防火墙阻塞 3. NAT类型不兼容</p>'
+          stopConnectionMonitoring();
         } else if (peer_connection.iceConnectionState === 'connected') {
           logDiv.innerHTML += '<p style="color: green;">ICE 连接成功！</p>'
+          startConnectionMonitoring(); // 开始监控连接类型
+        } else if (peer_connection.iceConnectionState === 'disconnected' || 
+                   peer_connection.iceConnectionState === 'closed') {
+          stopConnectionMonitoring();
         }
       }
 
@@ -544,6 +696,7 @@
         
         // 如果已有连接，重新初始化
         if (peer_connection && currentStream) {
+          stopConnectionMonitoring(); // 停止旧连接的监控
           peer_connection.close();
           initializeWebRTC(currentStream);
         }
