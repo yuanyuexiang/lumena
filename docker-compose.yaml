@@ -5,7 +5,7 @@ services:
   # 前端服务
   lumena:
     container_name: lumena
-    build: .
+    image: ${DOCKER_IMAGE_TAG}
     restart: always
     networks:
       - matrix-network
