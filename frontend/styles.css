@@ -81,11 +81,12 @@ h1 {
 
 .btn.danger {
   background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+  color: white;
 }
 
 .btn.danger:hover {
-  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+  background: linear-gradient(135deg, #ee5a52, #ff6b6b);
+  transform: translateY(-2px);
 }
 
 .btn.success {
@@ -264,4 +265,33 @@ video {
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
+}
+
+/* 添加到现有CSS文件中 */
+
+.video-placeholder {
+  width: 400px;
+  height: 300px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: #666;
+  text-align: center;
+}
+
+.video-placeholder p {
+  margin: 5px 0;
+}
+
+.input-field[readonly] {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
+
+#roomLink {
+  min-width: 300px;
 }

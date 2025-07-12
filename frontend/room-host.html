@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumena 房间创建者</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎥 Lumena 房间创建者</h1>
+      
+      <!-- 房间管理区域 -->
+      <div class="section">
+        <h3>🏠 房间管理</h3>
+        <div class="button-group">
+          <button id="createRoomBtn" class="btn success">🆕 创建新房间</button>
+          <button id="shareRoomBtn" class="btn">📤 分享房间</button>
+        </div>
+        <div class="status-item">
+          <span class="status-label">房间号:</span>
+          <span class="status-value" id="currentRoom">未创建</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">房间链接:</span>
+          <input type="text" id="roomLink" class="input-field" readonly placeholder="创建房间后显示">
+        </div>
+        <div class="status-item">
+          <span class="status-label">连接状态:</span>
+          <span class="status-value" id="connectionStatus">未连接</span>
+        </div>
+      </div>
+      
+      <div class="grid-2">
+        <div>
+          <!-- 网络诊断区域 -->
+          <div class="section">
+            <h3>🔧 网络诊断</h3>
+            <div class="button-group">
+              <button id="testTurnBtn" class="btn">测试 TURN 服务器</button>
+              <button id="diagnosisBtn" class="btn">网络诊断</button>
+            </div>
+            <div id="turnTestResult" class="result-box"></div>
+            <div id="diagnosisResult" class="result-box"></div>
+          </div>
+
+          <!-- 连接状态 -->
+          <div class="section">
+            <h3>📡 连接状态</h3>
+            <div class="status-box">
+              <div class="status-item">
+                <span class="status-label">连接方式:</span>
+                <span class="status-value">
+                  <span class="connection-indicator disconnected"></span>
+                  <span id="connectionType">未连接</span>
+                </span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">远程用户:</span>
+                <span class="status-value" id="remoteUsers">0</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">网络延迟:</span>
+                <span class="status-value" id="networkDelay">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <!-- 视频显示区域 -->
+          <div class="section">
+            <h3>🎬 远程视频流</h3>
+            <div class="video-container">
+              <div class="video-box">
+                <h4>远程用户视频</h4>
+                <div id="remoteVideos">
+                  <video id="remoteVideo" width="400" height="300" autoplay></video>
+                </div>
+                <div class="video-placeholder" id="videoPlaceholder">
+                  <p>等待远程用户连接...</p>
+                  <p>请分享房间链接给其他用户</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 日志区域 -->
+      <div class="section">
+        <h3>📋 系统日志</h3>
+        <div id="logs" class="logs"></div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    let peer_connection;
+    let mqttClient;
+    let roomId = null;
+    let localPeerId = 'host-' + Math.random().toString(36).substr(2, 9);
+    let connectionStatsInterval;
+    let connectedUsers = 0;
+
+    // 初始化 MQTT 连接
+    function initializeMQTT() {
+      const brokerUrl = 'wss://meteor.matrix-net.tech/mqtt';
+      
+      console.log('Connecting to EMQX MQTT broker:', brokerUrl);
+      
+      mqttClient = mqtt.connect(brokerUrl, {
+        clientId: localPeerId,
+        clean: true,
+        connectTimeout: 4000,
+        username: 'matrix',
+        password: 'sual116y',
+        reconnectPeriod: 1000,
+        protocolVersion: 4,
+        keepalive: 60,
+      });
+
+      mqttClient.on('connect', function () {
+        console.log('✅ EMQX MQTT Connected successfully');
+        document.getElementById('connectionStatus').textContent = 'MQTT已连接';
+        
+        if (roomId) {
+          // 订阅房间主题
+          mqttClient.subscribe(`webrtc/${roomId}/+/+`, function (err) {
+            if (!err) {
+              console.log(`📡 Subscribed to room: ${roomId}`);
+              
+              // 发送房间创建消息
+              mqttClient.publish(`webrtc/${roomId}/${localPeerId}/room-created`, JSON.stringify({
+                type: 'room-created',
+                hostId: localPeerId,
+                timestamp: Date.now()
+              }));
+              
+              const logDiv = document.getElementById('logs');
+              const timestamp = new Date().toLocaleTimeString();
+              logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🏠 房间已创建: ${roomId}</p>`;
+              logDiv.scrollTop = logDiv.scrollHeight;
+            }
+          });
+        }
+      });
+
+      mqttClient.on('message', function (topic, message) {
+        const topicParts = topic.split('/');
+        const remotePeerId = topicParts[2];
+        const messageType = topicParts[3];
+        
+        if (remotePeerId === localPeerId) return;
+        
+        try {
+          const data = JSON.parse(message.toString());
+          console.log('📥 MQTT message received:', { topic, messageType, data });
+          
+          const logDiv = document.getElementById('logs');
+          const timestamp = new Date().toLocaleTimeString();
+          logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📨 收到${messageType}消息</p>`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+          
+          handleSignalingMessage(messageType, data, remotePeerId);
+        } catch (error) {
+          console.error('❌ Error parsing MQTT message:', error);
+        }
+      });
+
+      mqttClient.on('error', function (error) {
+        console.error('❌ EMQX MQTT Error:', error);
+        document.getElementById('connectionStatus').textContent = 'MQTT连接失败';
+        
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ MQTT连接失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+
+      mqttClient.on('reconnect', function () {
+        console.log('🔄 EMQX MQTT Reconnecting...');
+        document.getElementById('connectionStatus').textContent = 'MQTT重连中...';
+      });
+    }
+
+    // 修正后的关键部分JavaScript代码
+
+    // 处理信令消息
+    function handleSignalingMessage(messageType, data, remotePeerId) {
+      switch (messageType) {
+        case 'join-room':
+          console.log(`👋 User ${remotePeerId} wants to join room`);
+          connectedUsers++;
+          document.getElementById('remoteUsers').textContent = connectedUsers;
+          
+          // 提前初始化WebRTC连接，准备接收offer
+          if (!peer_connection) {
+            initializeWebRTC();
+          }
+          
+          // 发送确认消息给B网页
+          sendSignalingMessage('room-ready', {
+            type: 'room-ready',
+            hostId: localPeerId,
+            timestamp: Date.now()
+          });
+          
+          const logDiv = document.getElementById('logs');
+          const timestamp = new Date().toLocaleTimeString();
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 👋 用户加入房间，准备接收视频流</p>`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+          break;
+          
+        case 'offer':
+          console.log("📞 Received offer from", remotePeerId);
+          // 收到offer时显示视频区域
+          document.getElementById('videoPlaceholder').style.display = 'none';
+          document.getElementById('remoteVideo').style.display = 'block';
+          handleOffer(data, remotePeerId);
+          break;
+          
+        case 'answer':
+          console.log("✅ Received answer from", remotePeerId);
+          handleAnswer(data);
+          break;
+          
+        case 'candidate':
+          console.log("🎯 Received ICE candidate from", remotePeerId);
+          handleIceCandidate(data);
+          break;
+      }
+    }
+
+    // 初始化WebRTC连接（接收端）
+    function initializeWebRTC() {
+      if (peer_connection) {
+        console.log('WebRTC connection already exists');
+        return;
+      }
+      
+      const iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:coturn.meteor.matrix-net.tech:3478' },
+        {
+          urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+          username: 'matrix',
+          credential: 'sual116y'
+        },
+        {
+          urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
+          username: 'matrix',
+          credential: 'sual116y'
+        }
+      ];
+
+      peer_connection = new RTCPeerConnection({
+        iceServers,
+        iceTransportPolicy: 'all'
+      });
+
+      // 处理远程流
+      peer_connection.ontrack = (event) => {
+        console.log('🎥 Remote stream received');
+        const remoteVideo = document.getElementById('remoteVideo');
+        
+        if (event.streams && event.streams[0]) {
+          remoteVideo.srcObject = event.streams[0];
+          
+          // 确保视频元素可见
+          remoteVideo.style.display = 'block';
+          document.getElementById('videoPlaceholder').style.display = 'none';
+          
+          const logDiv = document.getElementById('logs');
+          const timestamp = new Date().toLocaleTimeString();
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎥 远程视频流已连接</p>`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+        } else {
+          console.error('No streams found in track event');
+        }
+      };
+
+      // 处理 ICE candidate
+      peer_connection.onicecandidate = e => {
+        if (!e.candidate) {
+          console.log('❄️ ICE gathering complete');
+          return;
+        }
+        
+        console.log('🎯 ICE Candidate:', {
+          type: e.candidate.type,
+          protocol: e.candidate.protocol,
+          address: e.candidate.address
+        });
+        sendSignalingMessage('candidate', e.candidate);
+      };
+
+      // 监听连接状态变化
+      peer_connection.onconnectionstatechange = () => {
+        console.log('🔗 Connection state:', peer_connection.connectionState);
+        
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        switch (peer_connection.connectionState) {
+          case 'connected':
+            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎉 P2P连接已建立！</p>`;
+            document.getElementById('connectionType').textContent = '已连接';
+            document.querySelector('.connection-indicator').className = 'connection-indicator connected';
+            startConnectionMonitoring();
+            break;
+          case 'connecting':
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔄 正在建立P2P连接...</p>`;
+            document.getElementById('connectionType').textContent = '连接中';
+            document.querySelector('.connection-indicator').className = 'connection-indicator connecting';
+            break;
+          case 'disconnected':
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 P2P连接已断开</p>`;
+            document.getElementById('connectionType').textContent = '已断开';
+            document.querySelector('.connection-indicator').className = 'connection-indicator disconnected';
+            break;
+          case 'failed':
+            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ P2P连接失败</p>`;
+            document.getElementById('connectionType').textContent = '连接失败';
+            document.querySelector('.connection-indicator').className = 'connection-indicator disconnected';
+            break;
+        }
+        logDiv.scrollTop = logDiv.scrollHeight;
+      };
+
+      // 监听ICE连接状态
+      peer_connection.oniceconnectionstatechange = () => {
+        console.log('❄️ ICE connection state:', peer_connection.iceConnectionState);
+        
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        switch (peer_connection.iceConnectionState) {
+          case 'connected':
+          case 'completed':
+            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] ❄️ ICE连接已建立</p>`;
+            break;
+          case 'failed':
+            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ ICE连接失败</p>`;
+            break;
+          case 'disconnected':
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 ICE连接断开</p>`;
+            break;
+        }
+        logDiv.scrollTop = logDiv.scrollHeight;
+      };
+
+      console.log('✅ WebRTC connection initialized (receiver)');
+    }
+
+    // 发送信令消息
+    function sendSignalingMessage(messageType, data) {
+      const topic = `webrtc/${roomId}/${localPeerId}/${messageType}`;
+      const message = JSON.stringify(data);
+      
+      mqttClient.publish(topic, message, { qos: 0 }, function(err) {
+        if (err) {
+          console.error('❌ Failed to send MQTT message:', err);
+        } else {
+          console.log(`📤 Sent ${messageType} message via MQTT`);
+        }
+      });
+    }
+
+    // 处理 offer
+    function handleOffer(offer, remotePeerId) {
+      if (!peer_connection) {
+        console.error('❌ No peer connection when handling offer');
+        return;
+      }
+      
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📞 收到连接请求，正在响应...</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      peer_connection.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
+        console.log('✅ Remote description set successfully');
+        return peer_connection.createAnswer();
+      }).then(answer => {
+        console.log('✅ Answer created successfully');
+        return peer_connection.setLocalDescription(answer);
+      }).then(() => {
+        console.log('✅ Local description set successfully');
+        sendSignalingMessage('answer', peer_connection.localDescription);
+        
+        logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📤 已发送连接响应</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }).catch(error => {
+        console.error('❌ Error handling offer:', error);
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ 处理连接请求失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+    }
+
+    // 处理 answer
+    function handleAnswer(answer) {
+      if (!peer_connection) {
+        console.error('❌ No peer connection when handling answer');
+        return;
+      }
+      
+      peer_connection.setRemoteDescription(new RTCSessionDescription(answer)).then(() => {
+        console.log('✅ Remote description set from answer');
+      }).catch(error => {
+        console.error('❌ Error handling answer:', error);
+      });
+    }
+
+    // 处理 ICE candidate
+    function handleIceCandidate(candidate) {
+      if (!peer_connection) {
+        console.error('❌ No peer connection when handling ICE candidate');
+        return;
+      }
+      
+      peer_connection.addIceCandidate(new RTCIceCandidate(candidate)).then(() => {
+        console.log('✅ ICE candidate added successfully');
+      }).catch(error => {
+        console.error('❌ Error adding ICE candidate:', error);
+      });
+    }
+
+    // 开始连接监控
+    function startConnectionMonitoring() {
+      if (connectionStatsInterval) {
+        clearInterval(connectionStatsInterval);
+      }
+      
+      connectionStatsInterval = setInterval(async () => {
+        try {
+          const stats = await peer_connection.getStats();
+          stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime) {
+                const rtt = Math.round(report.currentRoundTripTime * 1000);
+                document.getElementById('networkDelay').textContent = `${rtt} ms`;
+                
+                const delayElement = document.getElementById('networkDelay');
+                if (rtt < 50) {
+                  delayElement.style.color = '#51cf66';
+                } else if (rtt < 150) {
+                  delayElement.style.color = '#ffd43b';
+                } else {
+                  delayElement.style.color = '#ff6b6b';
+                }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('获取连接统计失败:', error);
+        }
+      }, 2000);
+    }
+
+    // 创建房间
+    function createRoom() {
+      roomId = 'room-' + Math.random().toString(36).substr(2, 9);
+      document.getElementById('currentRoom').textContent = roomId;
+      
+      // 生成房间链接
+      const roomLink = `${window.location.origin}/room-join.html?room=${roomId}`;
+      document.getElementById('roomLink').value = roomLink;
+      
+      // 连接MQTT
+      initializeMQTT();
+      
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🏠 正在创建房间: ${roomId}</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 分享房间
+    function shareRoom() {
+      if (!roomId) {
+        alert('请先创建房间！');
+        return;
+      }
+      
+      const roomLink = document.getElementById('roomLink').value;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: 'Lumena 视频通话',
+          text: `加入我的视频通话房间: ${roomId}`,
+          url: roomLink
+        }).catch(console.error);
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(roomLink).then(() => {
+          alert('房间链接已复制到剪贴板！\n\n' + roomLink);
+        }).catch(() => {
+          prompt('复制此链接分享给其他人:', roomLink);
+        });
+      } else {
+        prompt('复制此链接分享给其他人:', roomLink);
+      }
+    }
+
+    // 测试 TURN 服务器
+    async function testTurnServer() {
+      const resultDiv = document.getElementById('turnTestResult');
+      resultDiv.innerHTML = '<p>正在测试 TURN 服务器连通性...</p>';
+      
+      try {
+        const testPC = new RTCPeerConnection({
+          iceServers: [
+            {
+              urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+              username: 'matrix',
+              credential: 'sual116y'
+            }
+          ],
+          iceTransportPolicy: 'relay'
+        });
+
+        let turnCandidateFound = false;
+        
+        testPC.onicecandidate = (event) => {
+          if (event.candidate && event.candidate.type === 'relay') {
+            turnCandidateFound = true;
+            resultDiv.innerHTML = '<p style="color: green;">✓ TURN 服务器连接成功！</p>';
+          }
+        };
+
+        testPC.createDataChannel('test');
+        const offer = await testPC.createOffer();
+        await testPC.setLocalDescription(offer);
+
+        setTimeout(() => {
+          if (!turnCandidateFound) {
+            resultDiv.innerHTML = '<p style="color: red;">✗ TURN 服务器连接失败！</p>';
+          }
+          testPC.close();
+        }, 5000);
+
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">测试失败: ${error.message}</p>`;
+      }
+    }
+
+    // 网络诊断
+    async function runNetworkDiagnosis() {
+      const resultDiv = document.getElementById('diagnosisResult');
+      resultDiv.innerHTML = '<p>正在进行网络诊断...</p>';
+      
+      try {
+        const testPC = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            {
+              urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+              username: 'matrix',
+              credential: 'sual116y'
+            }
+          ]
+        });
+
+        const results = {
+          host: false,
+          srflx: false,
+          relay: false
+        };
+
+        testPC.onicecandidate = (event) => {
+          if (event.candidate) {
+            const type = event.candidate.type;
+            if (type === 'host') results.host = true;
+            if (type === 'srflx') results.srflx = true;
+            if (type === 'relay') results.relay = true;
+          }
+        };
+
+        testPC.createDataChannel('test');
+        const offer = await testPC.createOffer();
+        await testPC.setLocalDescription(offer);
+
+        setTimeout(() => {
+          let report = '<div style="border: 1px solid #ccc; padding: 10px;">';
+          report += '<h4>📊 网络诊断报告</h4>';
+          report += '<p><strong>ICE Candidate 支持:</strong></p><ul>';
+          report += `<li>Host (本地): ${results.host ? '✓' : '✗'}</li>`;
+          report += `<li>Server Reflexive (STUN): ${results.srflx ? '✓' : '✗'}</li>`;
+          report += `<li>Relay (TURN): ${results.relay ? '✓' : '✗'}</li>`;
+          report += '</ul>';
+          
+          if (results.relay) {
+            report += '<p style="color: green;">✓ 网络环境良好，支持跨网络连接</p>';
+          } else {
+            report += '<p style="color: red;">⚠ 可能无法建立跨网络连接</p>';
+          }
+          
+          report += '</div>';
+          resultDiv.innerHTML = report;
+          testPC.close();
+        }, 3000);
+
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">诊断失败: ${error.message}</p>`;
+      }
+    }
+
+    // 页面加载完成后设置事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('createRoomBtn').addEventListener('click', createRoom);
+      document.getElementById('shareRoomBtn').addEventListener('click', shareRoom);
+      document.getElementById('testTurnBtn').addEventListener('click', testTurnServer);
+      document.getElementById('diagnosisBtn').addEventListener('click', runNetworkDiagnosis);
+      
+      // 初始隐藏远程视频
+      document.getElementById('remoteVideo').style.display = 'none';
+    });
+  </script>
+</html>
