@@ -6,6 +6,201 @@
     <title>Lumena 房间创建者</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    <!-- 使用更可靠的二维码库 -->
+    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <style>
+      /* 添加二维码相关样式 */
+      .qrcode-container {
+        text-align: center;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin: 15px 0;
+      }
+      
+      .qrcode-container #qrcode {
+        border: 3px solid white;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        background: white;
+        padding: 10px;
+      }
+      
+      .qrcode-info {
+        margin-top: 10px;
+        color: #333;
+        font-size: 14px;
+      }
+      
+      .room-info {
+        background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 15px 0;
+        text-align: center;
+      }
+      
+      .room-info h2 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      
+      .room-id {
+        font-size: 32px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        margin: 10px 0;
+        font-family: 'Courier New', monospace;
+      }
+      
+      .scan-instruction {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+        backdrop-filter: blur(10px);
+      }
+      
+      .scan-instruction h3 {
+        color: #333;
+        margin-bottom: 10px;
+      }
+      
+      .scan-steps {
+        text-align: left;
+        color: #555;
+      }
+      
+      .scan-steps li {
+        margin: 5px 0;
+        padding: 5px 0;
+      }
+      
+      .mobile-link {
+        background: #667eea;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-block;
+        margin: 10px 0;
+        font-weight: bold;
+      }
+      
+      .mobile-link:hover {
+        background: #5a6fd8;
+      }
+
+      /* 添加基本样式 */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+
+      .btn.success {
+        background: #4CAF50;
+      }
+
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .button-group {
+        margin: 10px 0;
+      }
+
+      .status-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .status-item:last-child {
+        border-bottom: none;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .video-container {
+        position: relative;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+      }
+
+      .video-placeholder {
+        padding: 40px;
+        text-align: center;
+        color: #666;
+        background: #f0f0f0;
+      }
+
+      .connection-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .connection-indicator.connected {
+        background: #4CAF50;
+      }
+
+      .connection-indicator.disconnected {
+        background: #f44336;
+      }
+
+      .logs {
+        max-height: 300px;
+        overflow-y: auto;
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+      }
+
+      .result-box {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f9f9f9;
+        border-radius: 5px;
+        min-height: 50px;
+      }
+
+      @media (max-width: 768px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -19,16 +214,40 @@
           <button id="shareRoomBtn" class="btn">📤 分享房间</button>
         </div>
         <div class="status-item">
-          <span class="status-label">房间号:</span>
-          <span class="status-value" id="currentRoom">未创建</span>
-        </div>
-        <div class="status-item">
-          <span class="status-label">房间链接:</span>
-          <input type="text" id="roomLink" class="input-field" readonly placeholder="创建房间后显示">
-        </div>
-        <div class="status-item">
           <span class="status-label">连接状态:</span>
           <span class="status-value" id="connectionStatus">未连接</span>
+        </div>
+      </div>
+      
+      <!-- 房间信息和二维码区域 -->
+      <div class="section" id="roomInfoSection" style="display: none;">
+        <div class="room-info">
+          <h2>🏠 房间已创建</h2>
+          <div class="room-id" id="currentRoom">-</div>
+          <p>扫描下方二维码或点击链接加入房间</p>
+        </div>
+        
+        <div class="qrcode-container">
+          <div id="qrcode"></div>
+          <div class="qrcode-info">
+            <p>📱 使用手机扫描二维码加入房间</p>
+          </div>
+        </div>
+        
+        <div class="scan-instruction">
+          <h3>📋 使用说明</h3>
+          <ol class="scan-steps">
+            <li>📱 打开手机摄像头或扫码应用</li>
+            <li>🎯 扫描上方二维码</li>
+            <li>🚀 自动打开房间页面</li>
+            <li>📷 点击"开始视频"即可开始通话</li>
+          </ol>
+        </div>
+        
+        <div style="text-align: center;">
+          <a href="#" id="mobileLink" class="mobile-link" target="_blank">
+            📱 直接在手机上打开
+          </a>
         </div>
       </div>
       
@@ -79,8 +298,8 @@
                   <video id="remoteVideo" width="400" height="300" autoplay></video>
                 </div>
                 <div class="video-placeholder" id="videoPlaceholder">
-                  <p>等待远程用户连接...</p>
-                  <p>请分享房间链接给其他用户</p>
+                  <p>📱 等待手机用户扫码连接...</p>
+                  <p>请使用手机扫描二维码加入房间</p>
                 </div>
               </div>
             </div>
@@ -103,6 +322,33 @@
     let localPeerId = 'host-' + Math.random().toString(36).substr(2, 9);
     let connectionStatsInterval;
     let connectedUsers = 0;
+
+    // 生成二维码 - 使用 qrcode-generator 库
+    function generateQRCode(url) {
+      const qrContainer = document.getElementById('qrcode');
+      
+      try {
+        // 创建二维码
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        
+        // 生成HTML
+        const qrHTML = qr.createImgTag(4, 8);
+        qrContainer.innerHTML = qrHTML;
+        
+        console.log('二维码生成成功');
+      } catch (error) {
+        console.error('生成二维码失败:', error);
+        // 降级方案：显示链接
+        qrContainer.innerHTML = `
+          <div style="padding: 20px; background: white; border-radius: 10px;">
+            <p>二维码生成失败，请直接复制链接:</p>
+            <input type="text" value="${url}" readonly style="width: 100%; padding: 10px; margin: 10px 0;">
+          </div>
+        `;
+      }
+    }
 
     // 初始化 MQTT 连接
     function initializeMQTT() {
@@ -185,8 +431,6 @@
       });
     }
 
-    // 修正后的关键部分JavaScript代码
-
     // 处理信令消息
     function handleSignalingMessage(messageType, data, remotePeerId) {
       switch (messageType) {
@@ -195,12 +439,19 @@
           connectedUsers++;
           document.getElementById('remoteUsers').textContent = connectedUsers;
           
+          // 更新占位符文本
+          const placeholder = document.getElementById('videoPlaceholder');
+          placeholder.innerHTML = `
+            <p>📱 手机用户已连接</p>
+            <p>正在等待视频流...</p>
+          `;
+          
           // 提前初始化WebRTC连接，准备接收offer
           if (!peer_connection) {
             initializeWebRTC();
           }
           
-          // 发送确认消息给B网页
+          // 发送确认消息给手机端
           sendSignalingMessage('room-ready', {
             type: 'room-ready',
             hostId: localPeerId,
@@ -209,7 +460,7 @@
           
           const logDiv = document.getElementById('logs');
           const timestamp = new Date().toLocaleTimeString();
-          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 👋 用户加入房间，准备接收视频流</p>`;
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 📱 手机用户已连接，准备接收视频流</p>`;
           logDiv.scrollTop = logDiv.scrollHeight;
           break;
           
@@ -274,7 +525,7 @@
           
           const logDiv = document.getElementById('logs');
           const timestamp = new Date().toLocaleTimeString();
-          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎥 远程视频流已连接</p>`;
+          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎥 手机视频流已连接</p>`;
           logDiv.scrollTop = logDiv.scrollHeight;
         } else {
           console.error('No streams found in track event');
@@ -305,47 +556,25 @@
         
         switch (peer_connection.connectionState) {
           case 'connected':
-            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎉 P2P连接已建立！</p>`;
+            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎉 与手机的P2P连接已建立！</p>`;
             document.getElementById('connectionType').textContent = '已连接';
             document.querySelector('.connection-indicator').className = 'connection-indicator connected';
             startConnectionMonitoring();
             break;
           case 'connecting':
-            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔄 正在建立P2P连接...</p>`;
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔄 正在与手机建立P2P连接...</p>`;
             document.getElementById('connectionType').textContent = '连接中';
             document.querySelector('.connection-indicator').className = 'connection-indicator connecting';
             break;
           case 'disconnected':
-            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 P2P连接已断开</p>`;
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 与手机的P2P连接已断开</p>`;
             document.getElementById('connectionType').textContent = '已断开';
             document.querySelector('.connection-indicator').className = 'connection-indicator disconnected';
             break;
           case 'failed':
-            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ P2P连接失败</p>`;
+            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌与手机的P2P连接失败</p>`;
             document.getElementById('connectionType').textContent = '连接失败';
             document.querySelector('.connection-indicator').className = 'connection-indicator disconnected';
-            break;
-        }
-        logDiv.scrollTop = logDiv.scrollHeight;
-      };
-
-      // 监听ICE连接状态
-      peer_connection.oniceconnectionstatechange = () => {
-        console.log('❄️ ICE connection state:', peer_connection.iceConnectionState);
-        
-        const logDiv = document.getElementById('logs');
-        const timestamp = new Date().toLocaleTimeString();
-        
-        switch (peer_connection.iceConnectionState) {
-          case 'connected':
-          case 'completed':
-            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] ❄️ ICE连接已建立</p>`;
-            break;
-          case 'failed':
-            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ ICE连接失败</p>`;
-            break;
-          case 'disconnected':
-            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 ICE连接断开</p>`;
             break;
         }
         logDiv.scrollTop = logDiv.scrollHeight;
@@ -377,7 +606,7 @@
       
       const logDiv = document.getElementById('logs');
       const timestamp = new Date().toLocaleTimeString();
-      logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📞 收到连接请求，正在响应...</p>`;
+      logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📞 收到手机连接请求，正在响应...</p>`;
       logDiv.scrollTop = logDiv.scrollHeight;
       
       peer_connection.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
@@ -390,7 +619,7 @@
         console.log('✅ Local description set successfully');
         sendSignalingMessage('answer', peer_connection.localDescription);
         
-        logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📤 已发送连接响应</p>`;
+        logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📤 已发送连接响应给手机</p>`;
         logDiv.scrollTop = logDiv.scrollHeight;
       }).catch(error => {
         console.error('❌ Error handling offer:', error);
@@ -464,16 +693,23 @@
       roomId = 'room-' + Math.random().toString(36).substr(2, 9);
       document.getElementById('currentRoom').textContent = roomId;
       
-      // 生成房间链接
-      const roomLink = `${window.location.origin}/room-join.html?room=${roomId}`;
-      document.getElementById('roomLink').value = roomLink;
+      // 生成手机端链接
+      const mobileLink = `${window.location.origin}/room-join-mobile.html?room=${roomId}`;
+      document.getElementById('mobileLink').href = mobileLink;
+      
+      // 生成二维码
+      generateQRCode(mobileLink);
+      
+      // 显示房间信息区域
+      document.getElementById('roomInfoSection').style.display = 'block';
       
       // 连接MQTT
       initializeMQTT();
       
       const logDiv = document.getElementById('logs');
       const timestamp = new Date().toLocaleTimeString();
-      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🏠 正在创建房间: ${roomId}</p>`;
+      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🏠 房间已创建: ${roomId}</p>`;
+      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 📱 请使用手机扫描二维码加入房间</p>`;
       logDiv.scrollTop = logDiv.scrollHeight;
     }
 
@@ -484,22 +720,22 @@
         return;
       }
       
-      const roomLink = document.getElementById('roomLink').value;
+      const mobileLink = document.getElementById('mobileLink').href;
       
       if (navigator.share) {
         navigator.share({
           title: 'Lumena 视频通话',
           text: `加入我的视频通话房间: ${roomId}`,
-          url: roomLink
+          url: mobileLink
         }).catch(console.error);
       } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(roomLink).then(() => {
-          alert('房间链接已复制到剪贴板！\n\n' + roomLink);
+        navigator.clipboard.writeText(mobileLink).then(() => {
+          alert('房间链接已复制到剪贴板！\n\n' + mobileLink);
         }).catch(() => {
-          prompt('复制此链接分享给其他人:', roomLink);
+          prompt('复制此链接分享给其他人:', mobileLink);
         });
       } else {
-        prompt('复制此链接分享给其他人:', roomLink);
+        prompt('复制此链接分享给其他人:', mobileLink);
       }
     }
 

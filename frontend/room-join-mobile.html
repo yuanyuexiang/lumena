@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Lumena 移动端</title>
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 10px;
+      }
+
+      .container {
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 20px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+
+      .section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .section h3 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+
+      .input-group {
+        margin-bottom: 15px;
+      }
+
+      .input-field {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .input-field:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+      }
+
+      .btn.primary {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn.success {
+        background: #4CAF50;
+        color: white;
+      }
+
+      .btn.danger {
+        background: #f44336;
+        color: white;
+      }
+
+      .btn.secondary {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .status-item:last-child {
+        border-bottom: none;
+      }
+
+      .status-label {
+        font-weight: bold;
+        color: #333;
+      }
+
+      .status-value {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .video-container {
+        position: relative;
+        width: 100%;
+        height: 250px;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 15px;
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .video-placeholder {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        background: #f0f0f0;
+        color: #666;
+        text-align: center;
+        flex-direction: column;
+      }
+
+      .connection-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .connection-indicator.connected {
+        background: #4CAF50;
+      }
+
+      .connection-indicator.disconnected {
+        background: #f44336;
+      }
+
+      .connection-indicator.connecting {
+        background: #ff9800;
+      }
+
+      .logs {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .button-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .button-grid .btn {
+        margin-bottom: 0;
+      }
+
+      /* 全屏视频模式 */
+      .video-fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1000;
+        background: black;
+      }
+
+      .video-fullscreen video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .fullscreen-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+      }
+
+      .fullscreen-controls .btn {
+        width: auto;
+        padding: 10px 20px;
+        margin: 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📱 Lumena 移动端</h1>
+        <p>扫码或输入房间号加入视频通话</p>
+      </div>
+      
+      <!-- 房间加入区域 -->
+      <div class="section">
+        <h3>🚪 加入房间</h3>
+        <div class="input-group">
+          <input type="text" id="roomIdInput" placeholder="输入房间号" class="input-field">
+          <button id="joinRoomBtn" class="btn primary">🚀 加入房间</button>
+        </div>
+        <div class="status-item">
+          <span class="status-label">当前房间:</span>
+          <span class="status-value" id="currentRoom">未加入</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">连接状态:</span>
+          <span class="status-value" id="connectionStatus">未连接</span>
+        </div>
+      </div>
+      
+      <!-- 视频控制区域 -->
+      <div class="section">
+        <h3>📹 视频控制</h3>
+        <div class="video-container" id="videoContainer">
+          <video id="localVideo" autoplay muted playsinline></video>
+          <div class="video-placeholder" id="videoPlaceholder">
+            <p>📷</p>
+            <p>点击"开始视频"启动摄像头</p>
+          </div>
+        </div>
+        
+        <div class="button-grid">
+          <button id="startVideoBtn" class="btn success">📷 开始视频</button>
+          <button id="stopVideoBtn" class="btn danger">⏹️ 停止视频</button>
+        </div>
+        
+        <button id="switchCameraBtn" class="btn secondary">🔄 切换摄像头</button>
+        <button id="fullscreenBtn" class="btn secondary">🔍 全屏预览</button>
+      </div>
+
+      <!-- 连接状态 -->
+      <div class="section">
+        <h3>📡 连接状态</h3>
+        <div class="status-item">
+          <span class="status-label">连接方式:</span>
+          <span class="status-value">
+            <span class="connection-indicator disconnected" id="connectionIndicator"></span>
+            <span id="connectionType">未连接</span>
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">视频质量:</span>
+          <span class="status-value" id="videoQuality">-</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">网络延迟:</span>
+          <span class="status-value" id="networkDelay">-</span>
+        </div>
+      </div>
+
+      <!-- 日志区域 -->
+      <div class="section">
+        <h3>📋 系统日志</h3>
+        <div id="logs" class="logs"></div>
+      </div>
+    </div>
+
+    <!-- 全屏视频模式 -->
+    <div id="fullscreenVideo" class="video-fullscreen hidden">
+      <video id="fullscreenVideoElement" autoplay muted playsinline></video>
+      <div class="fullscreen-controls">
+        <button id="exitFullscreenBtn" class="btn danger">❌ 退出全屏</button>
+        <button id="fullscreenSwitchBtn" class="btn secondary">🔄 切换摄像头</button>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    let peer_connection;
+    let mqttClient;
+    let roomId = null;
+    let localPeerId = 'user-' + Math.random().toString(36).substr(2, 9);
+    let currentStream = null;
+    let connectionStatsInterval;
+    let currentFacingMode = 'user';
+    let isFullscreen = false;
+
+    // 从URL获取房间号
+    function getRoomFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('room');
+    }
+
+    // 添加日志
+    function addLog(message, type = 'info') {
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      const colors = {
+        info: '#74c0fc',
+        success: '#51cf66',
+        error: '#ff6b6b',
+        warning: '#ffd43b'
+      };
+      
+      logDiv.innerHTML += `<p style="color: ${colors[type]};">[${timestamp}] ${message}</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 初始化 MQTT 连接
+    function initializeMQTT() {
+      const brokerUrl = 'wss://meteor.matrix-net.tech/mqtt';
+      
+      addLog('🔗 正在连接MQTT服务器...');
+      
+      mqttClient = mqtt.connect(brokerUrl, {
+        clientId: localPeerId,
+        clean: true,
+        connectTimeout: 4000,
+        username: 'matrix',
+        password: 'sual116y',
+        reconnectPeriod: 1000,
+        protocolVersion: 4,
+        keepalive: 60,
+      });
+
+      mqttClient.on('connect', function () {
+        addLog('✅ MQTT连接成功', 'success');
+        document.getElementById('connectionStatus').textContent = 'MQTT已连接';
+        
+        if (roomId) {
+          mqttClient.subscribe(`webrtc/${roomId}/+/+`, function (err) {
+            if (!err) {
+              addLog(`📡 已订阅房间: ${roomId}`, 'success');
+              
+              mqttClient.publish(`webrtc/${roomId}/${localPeerId}/join-room`, JSON.stringify({
+                type: 'join-room',
+                userId: localPeerId,
+                timestamp: Date.now()
+              }));
+              
+              addLog(`🚪 已加入房间: ${roomId}`, 'success');
+            }
+          });
+        }
+      });
+
+      mqttClient.on('message', function (topic, message) {
+        const topicParts = topic.split('/');
+        const remotePeerId = topicParts[2];
+        const messageType = topicParts[3];
+        
+        if (remotePeerId === localPeerId) return;
+        
+        try {
+          const data = JSON.parse(message.toString());
+          addLog(`📨 收到${messageType}消息`);
+          handleSignalingMessage(messageType, data, remotePeerId);
+        } catch (error) {
+          addLog('❌ 消息解析失败', 'error');
+        }
+      });
+
+      mqttClient.on('error', function (error) {
+        addLog('❌ MQTT连接失败', 'error');
+        document.getElementById('connectionStatus').textContent = 'MQTT连接失败';
+      });
+    }
+
+    // 处理信令消息
+    function handleSignalingMessage(messageType, data, remotePeerId) {
+      switch (messageType) {
+        case 'room-ready':
+          addLog(`✅ 房间准备就绪`, 'success');
+          if (currentStream && peer_connection) {
+            setTimeout(() => createOffer(), 1000);
+          }
+          break;
+          
+        case 'answer':
+          addLog(`✅ 收到连接响应`, 'success');
+          handleAnswer(data);
+          break;
+          
+        case 'candidate':
+          handleIceCandidate(data);
+          break;
+      }
+    }
+
+    // 获取摄像头流
+    async function getCameraStream(facingMode = 'user') {
+      try {
+        const constraints = {
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            facingMode: facingMode
+          },
+          audio: true
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        return stream;
+      } catch (error) {
+        // 降级尝试
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facingMode },
+            audio: true
+          });
+          return fallbackStream;
+        } catch (fallbackError) {
+          throw new Error('无法获取摄像头: ' + fallbackError.message);
+        }
+      }
+    }
+
+    // 开始视频
+    async function startVideo() {
+      try {
+        const stream = await getCameraStream(currentFacingMode);
+        currentStream = stream;
+        
+        // 显示本地视频
+        const videoElement = document.getElementById('localVideo');
+        videoElement.srcObject = stream;
+        videoElement.style.display = 'block';
+        document.getElementById('videoPlaceholder').style.display = 'none';
+        
+        addLog('📷 摄像头已开启', 'success');
+        
+        // 初始化WebRTC连接
+        initializeWebRTC(stream);
+        
+      } catch (error) {
+        addLog('❌ 开启视频失败: ' + error.message, 'error');
+        alert('开启视频失败: ' + error.message);
+      }
+    }
+
+    // 停止视频
+    function stopVideo() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+        
+        const videoElement = document.getElementById('localVideo');
+        videoElement.srcObject = null;
+        videoElement.style.display = 'none';
+        document.getElementById('videoPlaceholder').style.display = 'flex';
+        
+        if (peer_connection) {
+          peer_connection.close();
+          peer_connection = null;
+        }
+        
+        addLog('⏹️ 摄像头已关闭', 'warning');
+      }
+    }
+
+    // 切换摄像头
+    async function switchCamera() {
+      if (!currentStream) {
+        alert('请先开启摄像头');
+        return;
+      }
+      
+      currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      
+      try {
+        currentStream.getTracks().forEach(track => track.stop());
+        
+        const newStream = await getCameraStream(currentFacingMode);
+        currentStream = newStream;
+        
+        // 更新视频元素
+        const videoElements = [
+          document.getElementById('localVideo'),
+          document.getElementById('fullscreenVideoElement')
+        ];
+        
+        videoElements.forEach(video => {
+          if (video) video.srcObject = newStream;
+        });
+        
+        // 如果有WebRTC连接，替换视频轨道
+        if (peer_connection) {
+          const videoTrack = newStream.getVideoTracks()[0];
+          const sender = peer_connection.getSenders().find(s => 
+            s.track && s.track.kind === 'video'
+          );
+          
+          if (sender) {
+            await sender.replaceTrack(videoTrack);
+          }
+        }
+        
+        addLog(`🔄 已切换到${currentFacingMode === 'user' ? '前' : '后'}摄像头`, 'success');
+        
+      } catch (error) {
+        addLog('❌ 切换摄像头失败: ' + error.message, 'error');
+      }
+    }
+
+    // 全屏预览
+    function toggleFullscreen() {
+      const fullscreenDiv = document.getElementById('fullscreenVideo');
+      const fullscreenVideo = document.getElementById('fullscreenVideoElement');
+      
+      if (!isFullscreen) {
+        if (currentStream) {
+          fullscreenVideo.srcObject = currentStream;
+          fullscreenDiv.classList.remove('hidden');
+          isFullscreen = true;
+          
+          // 锁定屏幕方向（如果支持）
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(() => {});
+          }
+        } else {
+          alert('请先开启摄像头');
+        }
+      } else {
+        fullscreenDiv.classList.add('hidden');
+        isFullscreen = false;
+        
+        // 解锁屏幕方向
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      }
+    }
+
+    // 初始化WebRTC连接
+    function initializeWebRTC(stream) {
+      const iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:coturn.meteor.matrix-net.tech:3478' },
+        {
+          urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+          username: 'matrix',
+          credential: 'sual116y'
+        }
+      ];
+
+      peer_connection = new RTCPeerConnection({ iceServers });
+
+      stream.getTracks().forEach(track => {
+        peer_connection.addTrack(track, stream);
+      });
+
+      peer_connection.onicecandidate = e => {
+        if (e.candidate) {
+          sendSignalingMessage('candidate', e.candidate);
+        }
+      };
+
+      peer_connection.onconnectionstatechange = () => {
+        const state = peer_connection.connectionState;
+        const indicator = document.getElementById('connectionIndicator');
+        
+        switch (state) {
+          case 'connected':
+            addLog('🎉 P2P连接已建立！', 'success');
+            document.getElementById('connectionType').textContent = '已连接';
+            indicator.className = 'connection-indicator connected';
+            startConnectionMonitoring();
+            break;
+          case 'disconnected':
+            addLog('🔌 P2P连接已断开', 'warning');
+            document.getElementById('connectionType').textContent = '已断开';
+            indicator.className = 'connection-indicator disconnected';
+            break;
+          case 'failed':
+            addLog('❌ P2P连接失败', 'error');
+            document.getElementById('connectionType').textContent = '连接失败';
+            indicator.className = 'connection-indicator disconnected';
+            break;
+        }
+      };
+
+      setTimeout(() => createOffer(), 1000);
+    }
+
+    // 创建 offer
+    function createOffer() {
+      if (!peer_connection) return;
+      
+      addLog('🎬 正在创建连接请求...');
+      
+      peer_connection.createOffer().then(offer => {
+        return peer_connection.setLocalDescription(offer);
+      }).then(() => {
+        sendSignalingMessage('offer', peer_connection.localDescription);
+        addLog('📤 已发送连接请求', 'success');
+      }).catch(error => {
+        addLog('❌ 创建连接请求失败: ' + error.message, 'error');
+      });
+    }
+
+    // 发送信令消息
+    function sendSignalingMessage(messageType, data) {
+      if (!mqttClient || !roomId) return;
+      
+      const topic = `webrtc/${roomId}/${localPeerId}/${messageType}`;
+      mqttClient.publish(topic, JSON.stringify(data));
+    }
+
+    // 处理 answer
+    function handleAnswer(answer) {
+      if (peer_connection) {
+        peer_connection.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    }
+
+    // 处理 ICE candidate
+    function handleIceCandidate(candidate) {
+      if (peer_connection) {
+        peer_connection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    }
+
+    // 开始连接监控
+    function startConnectionMonitoring() {
+      if (connectionStatsInterval) {
+        clearInterval(connectionStatsInterval);
+      }
+      
+      connectionStatsInterval = setInterval(async () => {
+        try {
+          const stats = await peer_connection.getStats();
+          stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime) {
+                const rtt = Math.round(report.currentRoundTripTime * 1000);
+                document.getElementById('networkDelay').textContent = `${rtt} ms`;
+              }
+            }
+            
+            if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+              const bitrate = Math.round(report.bytesSent * 8 / report.timestamp * 1000);
+              document.getElementById('videoQuality').textContent = `${bitrate} kbps`;
+            }
+          });
+        } catch (error) {
+          console.error('获取连接统计失败:', error);
+        }
+      }, 2000);
+    }
+
+    // 加入房间
+    function joinRoom() {
+      const inputRoomId = document.getElementById('roomIdInput').value.trim();
+      if (!inputRoomId) {
+        alert('请输入房间号！');
+        return;
+      }
+      
+      roomId = inputRoomId;
+      document.getElementById('currentRoom').textContent = roomId;
+      
+      initializeMQTT();
+      addLog(`🚪 正在加入房间: ${roomId}`);
+    }
+
+    // 页面加载完成后设置事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+      // 从URL获取房间号
+      const urlRoomId = getRoomFromUrl();
+      if (urlRoomId) {
+        roomId = urlRoomId;
+        document.getElementById('roomIdInput').value = roomId;
+        document.getElementById('currentRoom').textContent = roomId;
+        initializeMQTT();
+      }
+      
+      // 事件监听器
+      document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
+      document.getElementById('startVideoBtn').addEventListener('click', startVideo);
+      document.getElementById('stopVideoBtn').addEventListener('click', stopVideo);
+      document.getElementById('switchCameraBtn').addEventListener('click', switchCamera);
+      document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+      document.getElementById('exitFullscreenBtn').addEventListener('click', toggleFullscreen);
+      document.getElementById('fullscreenSwitchBtn').addEventListener('click', switchCamera);
+      
+      // 回车键加入房间
+      document.getElementById('roomIdInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          joinRoom();
+        }
+      });
+      
+      // 阻止页面缩放
+      document.addEventListener('touchmove', function(e) {
+        if (e.scale !== 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
+      // 初始隐藏本地视频
+      document.getElementById('localVideo').style.display = 'none';
+      
+      addLog('📱 移动端已加载完成', 'success');
+    });
+  </script>
+</html>
