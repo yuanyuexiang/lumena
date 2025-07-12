@@ -9,283 +9,36 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumena 视频通话</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
-        color: #333;
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        padding: 30px;
-        backdrop-filter: blur(10px);
-      }
-
-      h1 {
-        text-align: center;
-        color: #4a5568;
-        margin-bottom: 30px;
-        font-size: 2.5em;
-        font-weight: 300;
-      }
-
-      .section {
-        background: white;
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 25px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e2e8f0;
-      }
-
-      .section h3 {
-        color: #2d3748;
-        margin-bottom: 20px;
-        font-size: 1.3em;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .section h3::before {
-        content: '';
-        width: 4px;
-        height: 20px;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        border-radius: 2px;
-      }
-
-      .btn {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 25px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        margin: 5px;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      }
-
-      .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-      }
-
-      .btn:active {
-        transform: translateY(0);
-      }
-
-      .btn.danger {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-      }
-
-      .btn.danger:hover {
-        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
-      }
-
-      .btn.success {
-        background: linear-gradient(135deg, #51cf66, #40c057);
-        box-shadow: 0 4px 15px rgba(81, 207, 102, 0.4);
-      }
-
-      .btn.success:hover {
-        box-shadow: 0 6px 20px rgba(81, 207, 102, 0.6);
-      }
-
-      .video-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-      }
-
-      .video-box {
-        background: #f8f9fa;
-        border-radius: 15px;
-        padding: 15px;
-        text-align: center;
-        border: 2px solid #e9ecef;
-      }
-
-      video {
-        width: 100%;
-        max-width: 400px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-      }
-
-      .status-box {
-        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        border: 1px solid #dee2e6;
-        border-radius: 15px;
-        padding: 20px;
-        margin: 15px 0;
-      }
-
-      .status-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid #e9ecef;
-      }
-
-      .status-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-      }
-
-      .status-label {
-        font-weight: 600;
-        color: #495057;
-      }
-
-      .status-value {
-        color: #6c757d;
-        font-family: 'Courier New', monospace;
-        background: rgba(255, 255, 255, 0.7);
-        padding: 4px 8px;
-        border-radius: 5px;
-      }
-
-      .logs {
-        background: #1a1a1a;
-        color: #00ff00;
-        padding: 20px;
-        border-radius: 10px;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
-        max-height: 300px;
-        overflow-y: auto;
-        margin-top: 15px;
-      }
-
-      .logs p {
-        margin-bottom: 5px;
-        line-height: 1.4;
-      }
-
-      .result-box {
-        margin-top: 15px;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-      }
-
-      .current-source {
-        background: rgba(102, 126, 234, 0.1);
-        color: #667eea;
-        padding: 5px 12px;
-        border-radius: 15px;
-        font-weight: 500;
-        margin-left: 10px;
-      }
-
-      .button-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        margin-top: 15px;
-      }
-
-      .icon {
-        width: 20px;
-        height: 20px;
-        margin-right: 8px;
-      }
-
-      .grid-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 25px;
-      }
-
-      @media (max-width: 768px) {
-        .grid-2 {
-          grid-template-columns: 1fr;
-        }
-        
-        .container {
-          padding: 15px;
-          margin: 10px;
-        }
-        
-        h1 {
-          font-size: 2em;
-        }
-      }
-
-      /* 动画效果 */
-      .section {
-        animation: slideInUp 0.6s ease;
-      }
-
-      @keyframes slideInUp {
-        from {
-          opacity: 0;
-          transform: translateY(30px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* 连接状态指示器 */
-      .connection-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        animation: pulse 2s infinite;
-      }
-
-      .connection-indicator.connected {
-        background-color: #51cf66;
-      }
-
-      .connection-indicator.disconnected {
-        background-color: #ff6b6b;
-      }
-
-      .connection-indicator.connecting {
-        background-color: #ffd43b;
-      }
-
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-      }
-    </style>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- 添加 MQTT 库 -->
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
   </head>
   <body>
     <div class="container">
       <h1>🎥 Lumena 视频通话</h1>
       
+      <!-- 添加房间管理区域 -->
+      <div class="section">
+        <h3>🏠 房间管理</h3>
+        <div class="button-group">
+          <input type="text" id="roomIdInput" placeholder="输入房间ID或留空自动生成" class="input-field">
+          <button id="joinRoomBtn" class="btn success">加入房间</button>
+          <button id="shareRoomBtn" class="btn">分享房间</button>
+        </div>
+        <div class="status-item">
+          <span class="status-label">当前房间:</span>
+          <span class="status-value" id="currentRoom">未加入</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">我的ID:</span>
+          <span class="status-value" id="myPeerId">-</span>
+        </div>
+      </div>
+      
       <div class="grid-2">
         <div>
-          <!-- 网络诊断区域 -->
+          <!-- 现有的网络诊断区域 -->
           <div class="section">
             <h3>🔧 网络诊断</h3>
             <div class="button-group">
@@ -347,7 +100,9 @@
               </div>
               <div class="video-box">
                 <h4>远程视频</h4>
-                <div id="remoteVideos"></div>
+                <div id="remoteVideos">
+                  <video id="remoteVideo" width="320" height="240" autoplay></video>
+                </div>
               </div>
             </div>
           </div>
@@ -369,6 +124,107 @@
     let forceRelay = false; // 是否强制使用 TURN
     let connectionStatsInterval; // 连接状态检测定时器
     let optimalConnectionMode = 'auto'; // 最优连接模式：'lan', 'nat', 'relay', 'auto'
+
+    // 更新 MQTT 连接配置
+    let mqttClient;
+    let roomId = 'room-' + Math.random().toString(36).substr(2, 9);
+    let localPeerId = 'peer-' + Math.random().toString(36).substr(2, 9);
+
+    // 初始化 MQTT 连接
+    function initializeMQTT() {
+      // 使用你部署的 EMQX 服务器
+      const brokerUrl = 'wss://meteor.matrix-net.tech/mqtt';
+      
+      console.log('Connecting to EMQX MQTT broker:', brokerUrl);
+      
+      mqttClient = mqtt.connect(brokerUrl, {
+        clientId: localPeerId,
+        clean: true,
+        connectTimeout: 4000,
+        username: 'matrix',      // 使用你的 EMQX 用户名
+        password: 'sual116y',    // 使用你的 EMQX 密码
+        reconnectPeriod: 1000,
+        protocolVersion: 4,      // MQTT 3.1.1
+        keepalive: 60,
+      });
+
+      mqttClient.on('connect', function () {
+        console.log('✅ EMQX MQTT Connected successfully');
+        
+        // 更新UI显示
+        document.getElementById('currentRoom').textContent = roomId;
+        
+        // 订阅房间主题
+        mqttClient.subscribe(`webrtc/${roomId}/+/+`, function (err) {
+          if (!err) {
+            console.log(`📡 Subscribed to room: ${roomId}`);
+            
+            // 发送加入房间消息
+            mqttClient.publish(`webrtc/${roomId}/${localPeerId}/join`, JSON.stringify({
+              type: 'join',
+              peerId: localPeerId,
+              timestamp: Date.now()
+            }));
+            
+            // 更新日志
+            const logDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎉 已连接到EMQX服务器并加入房间: ${roomId}</p>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+          } else {
+            console.error('❌ Failed to subscribe to room:', err);
+          }
+        });
+      });
+
+      mqttClient.on('message', function (topic, message) {
+        const topicParts = topic.split('/');
+        const remotePeerId = topicParts[2];
+        const messageType = topicParts[3];
+        
+        // 忽略自己发送的消息
+        if (remotePeerId === localPeerId) return;
+        
+        try {
+          const data = JSON.parse(message.toString());
+          console.log('📥 MQTT message received:', { topic, messageType, data });
+          
+          // 更新日志
+          const logDiv = document.getElementById('logs');
+          const timestamp = new Date().toLocaleTimeString();
+          logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📨 收到${messageType}消息来自: ${remotePeerId}</p>`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+          
+          handleSignalingMessage(messageType, data, remotePeerId);
+        } catch (error) {
+          console.error('❌ Error parsing MQTT message:', error);
+        }
+      });
+
+      mqttClient.on('error', function (error) {
+        console.error('❌ EMQX MQTT Error:', error);
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ MQTT连接失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+
+      mqttClient.on('disconnect', function () {
+        console.log('🔌 EMQX MQTT Disconnected');
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 MQTT连接断开</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+
+      mqttClient.on('reconnect', function () {
+        console.log('🔄 EMQX MQTT Reconnecting...');
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔄 正在重连MQTT服务器...</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+    }
 
     // 优先级连接测试
     async function runPriorityConnectionTest() {
@@ -1063,225 +919,204 @@
     function initializeWebRTC(stream) {
       currentStream = stream;
       
-      // 根据最优连接模式配置ICE服务器
-      let iceServers = [];
-      let iceTransportPolicy = 'all';
-      
-      if (optimalConnectionMode === 'lan') {
-        // 局域网模式：尽量使用本地候选
-        iceServers = [
-          { urls: 'stun:coturn.meteor.matrix-net.tech:3478' }
-        ];
-      } else if (optimalConnectionMode === 'relay' || forceRelay) {
-        // 中继模式：强制使用TURN
-        iceServers = [
-          {
-            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
-            username: 'matrix',
-            credential: 'sual116y'
-          },
-          {
-            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
-            username: 'matrix',
-            credential: 'sual116y'
-          }
-        ];
-        iceTransportPolicy = 'relay';
-      } else {
-        // 默认模式或NAT穿透模式：使用完整配置
-        iceServers = [
-          { urls: 'stun:coturn.meteor.matrix-net.tech:3478' },
-          {
-            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
-            username: 'matrix',
-            credential: 'sual116y'
-          },
-          {
-            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
-            username: 'matrix',
-            credential: 'sual116y'
-          },
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun.cloudflare.com:3478' }
-        ];
-        iceTransportPolicy = forceRelay ? 'relay' : 'all';
-      }
-      
-      // 创建 WebRTC 的 RTCPeerConnection 实例
+      // ICE 服务器配置
+      let iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:coturn.meteor.matrix-net.tech:3478' },
+        {
+          urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+          username: 'matrix',
+          credential: 'sual116y'
+        },
+        {
+          urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=udp',
+          username: 'matrix',
+          credential: 'sual116y'
+        }
+      ];
+
+      let iceTransportPolicy = forceRelay ? 'relay' : 'all';
+
+      // 创建 RTCPeerConnection
       peer_connection = new RTCPeerConnection({
         iceServers,
         iceTransportPolicy
-      })
+      });
 
-      // 记录当前使用的配置
-      const logDiv = document.getElementById('logs');
-      const timestamp = new Date().toLocaleTimeString();
-      logDiv.innerHTML += `<p>[${timestamp}] 🔧 使用连接模式: ${optimalConnectionMode === 'auto' ? '自动' : optimalConnectionMode} (${iceTransportPolicy})</p>`;
-      logDiv.scrollTop = logDiv.scrollHeight;
+      // 添加本地流
+      stream.getTracks().forEach(track => {
+        peer_connection.addTrack(track, stream);
+      });
 
-      // 3. 监听远端 track 事件（接收到远端媒体流时触发）
-      peer_connection.ontrack = function (event) {
-        // 只处理视频轨道，忽略音频
-        console.log('ontrack', event)
-        if (event.track.kind === 'audio') {
-          return
-        }
+      // 处理远程流
+      peer_connection.ontrack = (event) => {
+        console.log('🎥 Remote stream received');
+        const remoteVideo = document.getElementById('remoteVideo');
+        remoteVideo.srcObject = event.streams[0];
+        
+        const logDiv = document.getElementById('logs');
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎥 远程视频流已连接</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      };
 
-        // 创建 video 元素用于播放远端视频
-        let el = document.createElement(event.track.kind)
-        el.srcObject = event.streams[0]
-        el.autoplay = true
-        el.controls = true
-        document.getElementById('remoteVideos').appendChild(el)
-
-        // 远端 track 静音时尝试播放（兼容部分浏览器策略）
-        event.track.onmute = function(event) {
-          el.play()
-        }
-
-        // 远端流移除 track 时，移除 video 元素
-        event.streams[0].onremovetrack = ({track}) => {
-          if (el.parentNode) {
-            el.parentNode.removeChild(el)
-          }
-        }
-      }
-
-      // 4. 显示本地视频流
-      document.getElementById('localVideo').srcObject = stream
-      // 5. 将本地音视频轨道添加到 RTCPeerConnection
-      stream.getTracks().forEach(track => peer_connection.addTrack(track, stream))
-
-      // 6. 建立 WebSocket 连接到后端信令服务器
-      ws = new WebSocket("wss://meteor.matrix-net.tech/websocket")
-      //ws = new WebSocket("ws://117.72.204.201:8080/websocket")
-
-      // 7. 监听 ICE candidate 事件，将本地 candidate 发送给后端
+      // 处理 ICE candidate
       peer_connection.onicecandidate = e => {
         if (!e.candidate) {
-          console.log('ICE gathering complete')
-          return
+          console.log('❄️ ICE gathering complete');
+          return;
         }
-        // 记录 ICE candidate 类型以便调试
-        console.log('ICE Candidate:', {
+        
+        console.log('🎯 ICE Candidate:', {
           type: e.candidate.type,
           protocol: e.candidate.protocol,
           address: e.candidate.address,
-          port: e.candidate.port,
-          candidate: e.candidate.candidate
-        })
-        // 发送 candidate 消息，data 字段为字符串化的 candidate 对象
-        ws.send(JSON.stringify({event: 'candidate', data: JSON.stringify(e.candidate)}))
-      }
-
-      // 监听 ICE 连接状态变化
-      peer_connection.oniceconnectionstatechange = () => {
-        console.log('ICE Connection State:', peer_connection.iceConnectionState)
-        const logDiv = document.getElementById('logs')
-        const timestamp = new Date().toLocaleTimeString();
-        logDiv.innerHTML += `<p>[${timestamp}] ICE 连接状态: ${peer_connection.iceConnectionState}</p>`
+          port: e.candidate.port
+        });
         
-        if (peer_connection.iceConnectionState === 'failed') {
-          logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ ICE 连接失败！可能原因：TURN服务器不可用/网络防火墙阻塞/NAT类型不兼容</p>`
-          stopConnectionMonitoring();
-        } else if (peer_connection.iceConnectionState === 'connected') {
-          logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] ✅ ICE 连接成功！</p>`
-          startConnectionMonitoring(); // 开始监控连接类型
-        } else if (peer_connection.iceConnectionState === 'disconnected' || 
-                   peer_connection.iceConnectionState === 'closed') {
-          stopConnectionMonitoring();
-        }
-        
-        logDiv.scrollTop = logDiv.scrollHeight;
-      }
+        // 通过 MQTT 发送 candidate
+        sendSignalingMessage('candidate', e.candidate);
+      };
 
       // 监听连接状态变化
       peer_connection.onconnectionstatechange = () => {
-        console.log('Connection State:', peer_connection.connectionState)
-        const logDiv = document.getElementById('logs')
+        console.log('🔗 Connection state:', peer_connection.connectionState);
+        
+        const logDiv = document.getElementById('logs');
         const timestamp = new Date().toLocaleTimeString();
-        logDiv.innerHTML += `<p>[${timestamp}] 连接状态: ${peer_connection.connectionState}</p>`
+        
+        switch (peer_connection.connectionState) {
+          case 'connected':
+            logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎉 P2P连接已建立！</p>`;
+            startConnectionMonitoring();
+            break;
+          case 'disconnected':
+            logDiv.innerHTML += `<p style="color: #ffd43b;">[${timestamp}] 🔌 P2P连接已断开</p>`;
+            break;
+          case 'failed':
+            logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ P2P连接失败</p>`;
+            break;
+        }
         logDiv.scrollTop = logDiv.scrollHeight;
+      };
+
+      // 初始化 MQTT 连接
+      if (!mqttClient) {
+        initializeMQTT();
       }
+    }
 
-      // 8. WebSocket 关闭时弹窗提示
-      ws.onclose = function(evt) {
-        window.alert("Websocket has closed")
-      }
-
-      // 9. WebSocket 收到消息时的处理逻辑
-      ws.onmessage = function(evt) {
-        // 解析收到的 JSON 消息
-        let msg = JSON.parse(evt.data)
-        // 输出日志到页面
-        console.log('ws message', msg)
-        if (!msg) {
-          return console.log('failed to parse msg')
-        }
-
-        // 根据 event 字段类型分支处理
-        switch (msg.event) {
-          case 'paired':
-            // 收到 'paired' 事件，根据 data 判断是否为发起方
-            // data 为 "true" 表示是发起方，需要创建并发送 offer
-            if (msg.data === "true") {
-              console.log("I am the initiator, creating offer...")
-              peer_connection.createOffer().then(offer => {
-                peer_connection.setLocalDescription(offer)
-                ws.send(JSON.stringify({event: 'offer', data: JSON.stringify(offer)}))
-              })
-            } else {
-              console.log("I am the receiver, waiting for offer...")
-            }
-            return
-
-          case 'offer':
-            // 收到服务器发来的 offer，解析后设置为远端描述
-            let offer = JSON.parse(msg.data)
-            if (!offer) {
-              return console.log('failed to parse offer')
-            }
-            console.log("Received offer, creating answer...")
-            peer_connection.setRemoteDescription(offer)
-            // 创建 answer 并发送回服务器
-            peer_connection.createAnswer().then(answer => {
-              peer_connection.setLocalDescription(answer)
-              ws.send(JSON.stringify({event: 'answer', data: JSON.stringify(answer)}))
-            })
-            return
+    // 处理信令消息
+    function handleSignalingMessage(messageType, data, remotePeerId) {
+      switch (messageType) {
+        case 'join':
+          console.log(`👋 Peer ${remotePeerId} joined the room`);
+          // 如果是后加入的用户，创建 offer
+          if (data.timestamp > getLocalJoinTime()) {
+            createOffer(remotePeerId);
+          }
+          break;
           
-          case 'answer':
-            // 收到服务器转发的 answer，解析后设置为远端描述
-            let answer = JSON.parse(msg.data)
-            if (!answer) {
-              return console.log('failed to parse answer')
-            }
-            peer_connection.setRemoteDescription(answer)
-            return
+        case 'offer':
+          console.log("📞 Received offer from", remotePeerId);
+          handleOffer(data, remotePeerId);
+          break;
+          
+        case 'answer':
+          console.log("✅ Received answer from", remotePeerId);
+          handleAnswer(data);
+          break;
+          
+        case 'candidate':
+          console.log("🎯 Received ICE candidate from", remotePeerId);
+          handleIceCandidate(data);
+          break;
+      }
+    }
 
-          case 'candidate':
-            // 收到服务器转发的 candidate，解析后加入 RTCPeerConnection
-            let candidate = JSON.parse(msg.data)
-            console.log('收到远端 ICE Candidate:', {
-              type: candidate.type,
-              protocol: candidate.protocol,
-              address: candidate.address,
-              port: candidate.port
-            })
-            // 如果 candidate 解析失败，输出日志并返回
-            if (!candidate) {
-              return console.log('failed to parse candidate')
-            }
-            peer_connection.addIceCandidate(candidate).catch(err => {
-              console.error('添加 ICE candidate 失败:', err)
-            })
+    // 发送信令消息
+    function sendSignalingMessage(messageType, data, targetPeerId = null) {
+      const topic = `webrtc/${roomId}/${localPeerId}/${messageType}`;
+      const message = JSON.stringify(data);
+      
+      mqttClient.publish(topic, message, { qos: 0 }, function(err) {
+        if (err) {
+          console.error('❌ Failed to send MQTT message:', err);
+        } else {
+          console.log(`📤 Sent ${messageType} message via MQTT`);
         }
-      }
+      });
+    }
 
-      // 10. WebSocket 发生错误时输出日志
-      ws.onerror = function(evt) {
-        console.log("ERROR: " + evt.data)
-      }
+    // 创建 offer
+    function createOffer(remotePeerId) {
+      console.log("🎬 Creating offer for", remotePeerId);
+      
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 🎬 正在创建连接邀请...</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      peer_connection.createOffer().then(offer => {
+        peer_connection.setLocalDescription(offer);
+        sendSignalingMessage('offer', offer, remotePeerId);
+        
+        logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] 📤 已发送连接邀请</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }).catch(error => {
+        console.error('❌ Error creating offer:', error);
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ 创建连接邀请失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+    }
+
+    // 处理 offer
+    function handleOffer(offer, remotePeerId) {
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📞 收到连接邀请，正在响应...</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      peer_connection.setRemoteDescription(offer).then(() => {
+        return peer_connection.createAnswer();
+      }).then(answer => {
+        peer_connection.setLocalDescription(answer);
+        sendSignalingMessage('answer', answer, remotePeerId);
+        
+        logDiv.innerHTML += `<p style="color: #74c0fc;">[${timestamp}] 📤 已发送连接响应</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }).catch(error => {
+        console.error('❌ Error handling offer:', error);
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ 处理连接邀请失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+    }
+
+    // 处理 answer
+    function handleAnswer(answer) {
+      const logDiv = document.getElementById('logs');
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<p style="color: #51cf66;">[${timestamp}] ✅ 收到连接响应，正在建立连接...</p>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      peer_connection.setRemoteDescription(answer).catch(error => {
+        console.error('❌ Error handling answer:', error);
+        logDiv.innerHTML += `<p style="color: #ff6b6b;">[${timestamp}] ❌ 处理连接响应失败: ${error.message}</p>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      });
+    }
+
+    // 处理 ICE candidate
+    function handleIceCandidate(candidate) {
+      peer_connection.addIceCandidate(candidate).catch(error => {
+        console.error('❌ Error adding ICE candidate:', error);
+      });
+    }
+
+    // 获取本地加入时间
+    let localJoinTime = Date.now();
+    function getLocalJoinTime() {
+      return localJoinTime;
     }
 
     // 页面加载完成后设置事件监听器
