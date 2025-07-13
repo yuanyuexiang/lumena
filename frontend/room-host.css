@@ -9,201 +9,268 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   overflow-x: hidden;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+/* 背景装饰 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 70%, rgba(88, 86, 214, 0.3) 0%, transparent 50%);
+  z-index: -1;
 }
 
 .container {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0px;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-/* 修改卡片高度 */
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: blur(10px);
-  overflow: hidden;
-  position: relative;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   width: 100%;
-  height: 100vh; /* 改为100vh */
-  max-width: none; /* 移除最大宽度限制 */
-  max-height: none; /* 移除最大高度限制 */
-  display: flex;
-  flex-direction: column;
-  border-radius: 0px;
+  max-width: 900px;
+  position: relative;
+  overflow: hidden;
 }
 
-/* 修改主要区域 */
 .main-area {
-  flex: 1;
-  padding: 20px; /* 减少padding */
-  overflow: hidden; /* 改为hidden避免滚动条 */
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
 
-/* 修改主要内容区域 */
+/* 新的布局设计 */
 .main-content {
-  display: flex;
-  gap: 50px;
-  align-items: flex-start;
-  justify-content: center;
-  flex: 1; /* 占据剩余空间 */
-  min-height: 0; /* 允许子元素缩小 */
-}
-
-/* 二维码区域 */
-.qrcode-section {
-  text-align: center;
-  min-width: 320px;
+  padding: 30px 50px 50px 50px;
   display: flex;
   flex-direction: column;
+  gap: 30px;
   align-items: center;
-  justify-content: center;
 }
 
-.qrcode-container {
-  background: white;
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+.welcome-section {
+  text-align: center;
+  margin-bottom: 10px;
 }
 
-.qrcode-container img {
-  border-radius: 8px;
-  margin-bottom: 15px;
+.main-title {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
 }
 
-.qrcode-text {
+.subtitle {
+  font-size: 16px;
   color: #666;
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 15px;
+  margin: 0;
+  font-weight: 400;
 }
 
-.room-id {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  padding: 12px 20px;
-  background: #f8f9fa;
+.content-card {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 700px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 30px;
+  align-items: center;
+}
+
+.qr-area {
+  text-align: center;
+}
+
+.qr-wrapper {
+  background: #f8f9ff;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 2px solid #e8ecff;
+}
+
+.qr-wrapper img {
   border-radius: 8px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  color: #495057;
+  display: block;
+  margin: 0 auto;
+}
+
+.qr-info h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.qr-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.room-info {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 10px;
   border: 1px solid #e9ecef;
 }
 
-.mobile-link {
-  display: inline-block;
-  background: #667eea;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  text-decoration: none;
+.room-label {
+  font-size: 12px;
+  color: #666;
   font-weight: 500;
-  margin-top: 20px;
-  transition: all 0.3s ease;
 }
 
-.mobile-link:hover {
-  background: #5a6fd8;
-  transform: translateY(-1px);
+.room-id {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #667eea;
+  letter-spacing: 1px;
 }
 
-/* 说明区域 */
-.instructions {
-  max-width: 400px;
-  background: rgba(255, 255, 255, 0.7);
-  padding: 30px;
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.divider {
+  width: 2px;
+  height: 120px;
+  background: linear-gradient(to bottom, 
+    transparent,
+    #e0e7ff,
+    #e0e7ff,
+    transparent
+  );
+  border-radius: 2px;
 }
 
-.instructions h3 {
-  color: #333;
+.steps-area h3 {
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 20px;
-}
-
-.instructions ol {
-  color: #555;
-  line-height: 1.8;
-  font-size: 15px;
-}
-
-.instructions li {
-  margin: 12px 0;
-  padding-left: 8px;
-}
-
-/* 视频区域 */
-.video-section {
+  color: #333;
+  margin: 0 0 25px 0;
   text-align: center;
+}
+
+.steps-list {
   display: flex;
   flex-direction: column;
-  flex: 1; /* 占据剩余空间 */
-  min-height: 0; /* 允许子元素缩小 */
+  gap: 20px;
 }
 
-.video-title {
-  color: #333;
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 20px; /* 减少底部间距 */
-  flex-shrink: 0; /* 标题不缩小 */
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
 }
 
-/* 修改视频容器样式 */
-.video-container {
-  background: #000;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-  flex: 1;
-  min-height: 100%;
-  max-height: calc(100vh - 100px);
-  width: 100%;
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
-/* 视频元素样式 */
+.step-content h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+.step-content p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+
+/* 视频区域 - 与二维码区域保持一致 */
+.video-section {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 50px 50px 50px;
+  background: #000;
+  position: relative;
+  box-sizing: border-box;
+  gap: 30px;
+  align-items: center;
+}
+
+.video-container {
+  background: #000;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 700px;
+  height: 500px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
 #remoteVideo {
   width: auto;
   height: auto;
   max-width: 100%;
   max-height: 100%;
-  object-fit: contain; /* 保持比例，不裁剪 */
+  object-fit: contain;
   display: block;
-  border-radius: 16px;
-}
-
-/* 确保视频居中显示 */
-.video-container video {
-  margin: auto;
 }
 
 .video-status {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  background: rgba(0, 0, 0, 0.7);
+  top: 30px;
+  left: 30px;
+  background: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 12px 20px;
+  border-radius: 25px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
 }
 
 .video-controls {
@@ -213,26 +280,30 @@ body {
   gap: 12px;
 }
 
-/* 视频按钮样式 */
+/* 视频按钮样式 - 现代化设计 */
 .close-video-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(220, 53, 69, 0.8);
+  top: 20px;
+  right: 20px;
+  background: rgba(239, 68, 68, 0.9);
   color: white;
   border: none;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
 }
 
 .close-video-btn:hover {
-  background: rgba(220, 53, 69, 1);
+  background: rgba(239, 68, 68, 1);
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(239, 68, 68, 0.4);
 }
 
 .close-video-btn svg {
@@ -242,23 +313,27 @@ body {
 
 .fullscreen-btn {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
-  background: rgba(0, 0, 0, 0.7);
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
   color: white;
   border: none;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .fullscreen-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 1);
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
 }
 
 .fullscreen-btn svg {
@@ -266,8 +341,10 @@ body {
   height: 20px;
 }
 
+/* 全屏状态优化 */
 .video-container:fullscreen {
   border-radius: 0;
+  border: none;
 }
 
 .video-container:fullscreen .video-status {
@@ -275,7 +352,15 @@ body {
 }
 
 .video-container:fullscreen .close-video-btn {
-  display: none;
+  top: 30px;
+  right: 30px;
+  padding: 15px;
+}
+
+.video-container:fullscreen .fullscreen-btn {
+  bottom: 30px;
+  right: 30px;
+  padding: 15px;
 }
 
 /* 高级设置触发按钮 */
@@ -500,4 +585,297 @@ body {
     transform: translateX(100%);
     opacity: 0;
   }
+}
+
+/* 响应式设计 */
+
+/* 大屏幕优化 (1440px+) */
+@media (min-width: 1440px) {
+  .video-container {
+    border-radius: 24px;
+  }
+}
+
+
+
+/* 加载动画 */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.video-container {
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* 性能优化 */
+* {
+  will-change: auto;
+}
+
+.video-container,
+.close-video-btn,
+.fullscreen-btn {
+  will-change: transform;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .container {
+    min-height: 100vh;
+    padding: 10px;
+  }
+  
+  .card {
+    max-width: 100%;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.95);
+    margin: 0;
+  }
+  
+  .main-content {
+    padding: 20px 20px 30px 20px;
+    gap: 20px;
+  }
+  
+  .main-title {
+    font-size: 24px;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+  }
+  
+  .content-card {
+    padding: 20px;
+    gap: 20px;
+  }
+  
+  .qr-area {
+    flex-direction: column;
+    gap: 30px;
+    text-align: center;
+  }
+  
+  .qr-wrapper {
+    order: 1;
+  }
+  
+  .qr-instructions {
+    order: 2;
+  }
+  
+  .steps-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .video-section {
+    padding: 20px 20px 30px 20px;
+    gap: 20px;
+  }
+  
+  .video-container {
+    height: 400px;
+    border-radius: 16px;
+  }
+  
+  .video-status {
+    top: 20px;
+    left: 20px;
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+  
+  .close-video-btn,
+  .fullscreen-btn {
+    padding: 10px;
+  }
+  
+  .close-video-btn svg,
+  .fullscreen-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* 高级设置面板响应式 */
+  .advanced-panel {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+  
+  .advanced-trigger {
+    top: 15px;
+    right: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 8px;
+  }
+  
+  .main-content {
+    padding: 15px 15px 25px 15px;
+    gap: 15px;
+  }
+  
+  .main-title {
+    font-size: 22px;
+  }
+  
+  .subtitle {
+    font-size: 13px;
+  }
+  
+  .content-card {
+    padding: 15px;
+    gap: 15px;
+  }
+  
+  .step-item {
+    padding: 16px;
+  }
+  
+  .button {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+  
+  .video-section {
+    padding: 15px 15px 25px 15px;
+    gap: 15px;
+  }
+  
+  .video-container {
+    height: 350px;
+    border-radius: 12px;
+  }
+  
+  .video-info {
+    padding: 15px;
+  }
+}
+
+/* 小屏幕高度优化 */
+@media (max-height: 700px) {
+  .main-content {
+    padding: 20px 50px 30px 50px;
+    gap: 20px;
+  }
+  
+  .welcome-section {
+    margin-bottom: 5px;
+  }
+  
+  .main-title {
+    font-size: 24px;
+    margin: 0 0 5px 0;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+  }
+  
+  .content-card {
+    padding: 25px;
+    gap: 25px;
+  }
+  
+  .video-section {
+    padding: 20px 50px 30px 50px;
+    gap: 20px;
+  }
+  
+  .video-container {
+    height: 400px;
+  }
+}
+
+@media (max-height: 600px) {
+  .main-content {
+    padding: 15px 30px 25px 30px;
+    gap: 15px;
+  }
+  
+  .main-title {
+    font-size: 22px;
+  }
+  
+  .content-card {
+    padding: 20px;
+    gap: 20px;
+  }
+  
+  .video-section {
+    padding: 15px 30px 25px 30px;
+    gap: 15px;
+  }
+  
+  .video-container {
+    height: 350px;
+  }
+}
+
+
+
+/* 视频区域信息显示 */
+.video-info {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 30px;
+  width: 100%;
+  max-width: 700px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.video-info h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.video-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.video-status-info {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+}
+
+.video-status-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.video-status-value {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #28a745;
+  letter-spacing: 1px;
 }

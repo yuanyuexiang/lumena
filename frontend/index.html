@@ -16,25 +16,54 @@
         <div class="main-area">
           <!-- 二维码显示 -->
           <div id="qrcodeDisplay" class="main-content">
-            <div class="qrcode-section">
-              <div class="qrcode-container">
-                <div id="qrcode"></div>
-                <div class="qrcode-text">手机扫描二维码投屏</div>
-                <div class="room-id" id="currentRoom">正在创建...</div>
-              </div>
-              <!-- <a href="#" id="mobileLink" class="mobile-link" target="_blank">
-                在手机上打开
-              </a> -->
-            </div>
+            <!-- <div class="welcome-section">
+              <h1 class="main-title">Lumena 手机投屏</h1>
+              <p class="subtitle">手机摄像头实时投屏到电脑</p>
+            </div> -->
             
-            <div class="instructions">
-              <h3>使用说明</h3>
-              <ol>
-                <li>手机有浏览器或者微信</li>
-                <li>扫描左侧二维码</li>
-                <li>手机选择前后摄像头</li>
-                <li>点击"开始投屏" ，等待连接</li>
-              </ol>
+            <div class="content-card">
+              <div class="qr-area">
+                <div class="qr-wrapper">
+                  <div id="qrcode"></div>
+                </div>
+                <div class="qr-info">
+                  <h3>扫码连接</h3>
+                  <p>使用手机浏览器或微信扫描上方二维码</p>
+                  <div class="room-info">
+                    <span class="room-label">房间号:</span>
+                    <span class="room-id" id="currentRoom">正在创建...</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="divider"></div>
+              
+              <div class="steps-area">
+                <h3>操作步骤</h3>
+                <div class="steps-list">
+                  <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                      <h4>扫描二维码</h4>
+                      <p>用手机扫描左侧二维码</p>
+                    </div>
+                  </div>
+                  <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                      <h4>选择摄像头</h4>
+                      <p>选择前置或后置摄像头</p>
+                    </div>
+                  </div>
+                  <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                      <h4>开始投屏</h4>
+                      <p>点击开始按钮，等待连接</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -57,6 +86,16 @@
                 </svg>
               </button>
             </div>
+            
+            <!-- 视频信息区域 -->
+            <!-- <div class="video-info">
+              <h3>视频连接中</h3>
+              <p>正在接收来自手机的视频流</p>
+              <div class="video-status-info">
+                <span class="video-status-label">连接状态:</span>
+                <span class="video-status-value" id="videoConnectionStatus">已连接</span>
+              </div>
+            </div> -->
             <!-- <div class="video-controls">
               <button class="btn secondary" onclick="showQRCode()">显示二维码</button>
               <button class="btn" onclick="shareRoom()">分享房间</button>
@@ -362,6 +401,7 @@
             
             addLog('视频流连接成功');
             document.getElementById('videoStatus').textContent = '视频通话中';
+            document.getElementById('videoConnectionStatus').textContent = '视频通话中';
           }
         };
 
@@ -534,22 +574,14 @@
         
         if (!video || !container || !video.videoWidth || !video.videoHeight) return;
         
-        // 获取视频原始比例
-        const videoAspectRatio = video.videoWidth / video.videoHeight;
+        // 重置样式，让CSS处理尺寸
+        video.style.height = 'auto';
+        video.style.width = 'auto';
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '100%';
+        video.style.objectFit = 'contain';
         
-        // 高度自适应浏览器高度（减去一些边距）
-        const viewportHeight = window.innerHeight;
-        const finalHeight = container.clientHeight; // 使用容器的实际高度
-        
-        // 根据视频比例计算宽度
-        const finalWidth = finalHeight * videoAspectRatio;
-        
-        // 设置视频尺寸
-        video.style.height = finalHeight + 'px';
-        video.style.width = finalWidth + 'px';
-        video.style.objectFit = 'contain'; // 保持比例，不裁剪
-        
-        addLog(`视频尺寸调整: 原始${video.videoWidth}x${video.videoHeight} (比例${videoAspectRatio.toFixed(2)}) -> 显示${Math.round(finalWidth)}x${Math.round(finalHeight)}`);
+        addLog(`视频尺寸调整: 原始${video.videoWidth}x${video.videoHeight} -> CSS自适应显示`);
       }
 
 
