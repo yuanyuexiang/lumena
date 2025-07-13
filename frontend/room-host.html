@@ -43,6 +43,19 @@
             <div class="video-container">
               <video id="remoteVideo" autoplay playsinline></video>
               <div class="video-status" id="videoStatus">已连接</div>
+              <!-- 添加全屏按钮 -->
+              <button class="fullscreen-btn" onclick="toggleFullscreen()" title="全屏">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+              </button>
+              <!-- 添加视频关闭按钮 -->
+              <button class="close-video-btn" onclick="closeVideo()" title="关闭视频">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
             <!-- <div class="video-controls">
               <button class="btn secondary" onclick="showQRCode()">显示二维码</button>
@@ -306,6 +319,17 @@
           case 'candidate':
             handleIceCandidate(data);
             break;
+            
+          case 'user-disconnect':
+            // 处理用户主动断开
+            addLog('用户主动断开连接');
+            if (isVideoConnected) {
+              showQRCode();
+              isVideoConnected = false;
+            }
+            connectedUsers = Math.max(0, connectedUsers - 1);
+            document.getElementById('remoteUsers').textContent = connectedUsers;
+            break;
         }
       }
 
@@ -361,6 +385,8 @@
                 showQRCode();
                 isVideoConnected = false;
               }
+              connectedUsers = Math.max(0, connectedUsers - 1);
+              document.getElementById('remoteUsers').textContent = connectedUsers;
               break;
             case 'failed':
               document.getElementById('connectionType').textContent = '连接失败';
@@ -409,32 +435,76 @@
         }
       }
 
-      // 测试TURN服务器
-      async function testTurnServer() {
-        const resultDiv = document.getElementById('turnTestResult');
-        resultDiv.innerHTML = '<p>正在测试 TURN 服务器...</p>';
+      // 添加全屏功能
+      function toggleFullscreen() {
+        const videoContainer = document.querySelector('.video-container');
         
-        setTimeout(() => {
-          resultDiv.innerHTML = '<p style="color: #28a745;">✓ TURN 服务器连接正常</p>';
-        }, 2000);
+        if (!document.fullscreenElement) {
+          // 进入全屏
+          videoContainer.requestFullscreen().catch(err => {
+            console.error('无法进入全屏:', err);
+            addLog('无法进入全屏: ' + err.message);
+          });
+        } else {
+          // 退出全屏
+          document.exitFullscreen();
+        }
       }
 
-      // 网络诊断
-      async function runNetworkDiagnosis() {
-        const resultDiv = document.getElementById('diagnosisResult');
-        resultDiv.innerHTML = '<p>正在进行网络诊断...</p>';
+      // 监听全屏状态变化
+      document.addEventListener('fullscreenchange', function() {
+        const fullscreenBtn = document.querySelector('.fullscreen-btn');
+        const btnSvg = fullscreenBtn.querySelector('svg path');
         
-        setTimeout(() => {
-          resultDiv.innerHTML = `
-            <div>
-              <h4>网络诊断报告</h4>
-              <p>✓ 本地网络: 正常</p>
-              <p>✓ STUN服务器: 正常</p>
-              <p>✓ TURN服务器: 正常</p>
-              <p style="color: #28a745;">✓ 网络环境良好</p>
-            </div>
-          `;
-        }, 2000);
+        if (document.fullscreenElement) {
+          // 全屏状态 - 显示退出全屏图标
+          btnSvg.setAttribute('d', 'M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3');
+          fullscreenBtn.title = '退出全屏';
+          addLog('进入全屏模式');
+        } else {
+          // 正常状态 - 显示进入全屏图标
+          btnSvg.setAttribute('d', 'M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3');
+          fullscreenBtn.title = '全屏';
+          addLog('退出全屏模式');
+        }
+      });
+
+      // 添加关闭视频功能
+      function closeVideo() {
+        // 发送关闭视频信令给移动端
+        sendSignalingMessage('close-video', {
+          type: 'close-video',
+          hostId: localPeerId,
+          timestamp: Date.now()
+        });
+        
+        // 关闭WebRTC连接
+        if (peer_connection) {
+          peer_connection.close();
+          peer_connection = null;
+        }
+        
+        // 清空视频元素
+        const remoteVideo = document.getElementById('remoteVideo');
+        if (remoteVideo.srcObject) {
+          remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+          remoteVideo.srcObject = null;
+        }
+        
+        // 显示二维码页面
+        showQRCode();
+        
+        // 更新连接状态
+        document.getElementById('connectionType').textContent = '未连接';
+        document.querySelector('.connection-indicator').className = 'connection-indicator disconnected';
+        document.getElementById('remoteUsers').textContent = '0';
+        
+        // 重置状态
+        isVideoConnected = false;
+        connectedUsers = 0;
+        
+        addLog('主动关闭视频连接');
+        addLog('等待用户重新扫描二维码...');
       }
 
       // 页面加载完成
