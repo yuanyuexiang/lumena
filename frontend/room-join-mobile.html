@@ -189,7 +189,7 @@
       }
 
       .button-grid .btn {
-        margin-bottom: 10;
+        margin-bottom: 0;
       }
 
       /* 全屏视频模式 */
@@ -707,12 +707,28 @@
       document.getElementById('exitFullscreenBtn').addEventListener('click', toggleFullscreen);
       document.getElementById('fullscreenSwitchBtn').addEventListener('click', switchCamera);
       
-      // 阻止页面缩放
-      document.addEventListener('touchmove', function(e) {
-        if (e.scale !== 1) {
+      // 阻止页面缩放但保留滚动
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (e) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
           e.preventDefault();
         }
-      }, { passive: false });
+        lastTouchEnd = now;
+      }, false);
+      
+      // 阻止双指缩放
+      document.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+      });
+      
+      document.addEventListener('gesturechange', function (e) {
+        e.preventDefault();
+      });
+      
+      document.addEventListener('gestureend', function (e) {
+        e.preventDefault();
+      });
       
       // 初始隐藏本地视频
       document.getElementById('localVideo').style.display = 'none';
