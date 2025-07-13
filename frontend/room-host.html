@@ -354,6 +354,9 @@
             // 自动切换到视频显示
             showVideo();
             
+            // 处理视频尺寸调整
+            handleVideoResize();
+            
             addLog('视频流连接成功');
             document.getElementById('videoStatus').textContent = '视频通话中';
           }
@@ -507,7 +510,48 @@
         addLog('等待用户重新扫描二维码...');
       }
 
-      // 页面加载完成
+      // 在现有的script标签中添加视频比例处理函数
+      function handleVideoResize() {
+        const video = document.getElementById('remoteVideo');
+        
+        if (!video) return;
+        
+        // 当视频元数据加载完成时调整尺寸
+        video.addEventListener('loadedmetadata', function() {
+          adjustVideoSize();
+        }, { once: true }); // 只执行一次
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', adjustVideoSize);
+      }
+
+      function adjustVideoSize() {
+        const video = document.getElementById('remoteVideo');
+        const container = document.querySelector('.video-container');
+        
+        if (!video || !container || !video.videoWidth || !video.videoHeight) return;
+        
+        // 获取视频原始比例
+        const videoAspectRatio = video.videoWidth / video.videoHeight;
+        
+        // 高度自适应浏览器高度（减去一些边距）
+        const viewportHeight = window.innerHeight;
+        const finalHeight = container.clientHeight; // 使用容器的实际高度
+        
+        // 根据视频比例计算宽度
+        const finalWidth = finalHeight * videoAspectRatio;
+        
+        // 设置视频尺寸
+        video.style.height = finalHeight + 'px';
+        video.style.width = finalWidth + 'px';
+        video.style.objectFit = 'contain'; // 保持比例，不裁剪
+        
+        addLog(`视频尺寸调整: 原始${video.videoWidth}x${video.videoHeight} (比例${videoAspectRatio.toFixed(2)}) -> 显示${Math.round(finalWidth)}x${Math.round(finalHeight)}`);
+      }
+
+
+
+      // 在页面加载完成时初始化
       document.addEventListener('DOMContentLoaded', function() {
         autoCreateRoom();
         
@@ -516,6 +560,72 @@
         
         addLog('页面加载完成，开始初始化...');
       });
+      
+      // 测试TURN服务器
+      function testTurnServer() {
+        const resultDiv = document.getElementById('turnTestResult');
+        resultDiv.textContent = '测试中...';
+        
+        // 简单的TURN连接测试
+        const iceServers = [
+          {
+            urls: 'turn:coturn.meteor.matrix-net.tech:3478?transport=tcp',
+            username: 'matrix',
+            credential: 'sual116y'
+          }
+        ];
+        
+        const testPC = new RTCPeerConnection({ iceServers });
+        
+        testPC.createDataChannel('test');
+        testPC.createOffer()
+          .then(offer => testPC.setLocalDescription(offer))
+          .catch(error => {
+            resultDiv.textContent = 'TURN测试失败: ' + error.message;
+            addLog('TURN服务器测试失败');
+          });
+        
+        setTimeout(() => {
+          if (testPC.iceGatheringState === 'complete') {
+            resultDiv.textContent = 'TURN服务器可用';
+            addLog('TURN服务器测试成功');
+          } else {
+            resultDiv.textContent = 'TURN服务器连接超时';
+            addLog('TURN服务器测试超时');
+          }
+          testPC.close();
+        }, 5000);
+      }
+      
+      // 网络诊断
+      function runNetworkDiagnosis() {
+        const resultDiv = document.getElementById('diagnosisResult');
+        resultDiv.innerHTML = '诊断中...<br>';
+        
+        // 检查WebRTC支持
+        if (!window.RTCPeerConnection) {
+          resultDiv.innerHTML += '❌ WebRTC不支持<br>';
+          return;
+        } else {
+          resultDiv.innerHTML += '✅ WebRTC支持<br>';
+        }
+        
+        // 检查getUserMedia支持
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          resultDiv.innerHTML += '❌ 媒体设备不支持<br>';
+        } else {
+          resultDiv.innerHTML += '✅ 媒体设备支持<br>';
+        }
+        
+        // 检查网络连接
+        if (navigator.onLine) {
+          resultDiv.innerHTML += '✅ 网络已连接<br>';
+        } else {
+          resultDiv.innerHTML += '❌ 网络未连接<br>';
+        }
+        
+        addLog('网络诊断完成');
+      }
     </script>
   </body>
 </html>

@@ -162,24 +162,36 @@ body {
   flex-shrink: 0; /* 标题不缩小 */
 }
 
+/* 修改视频容器样式 */
 .video-container {
   background: #000;
   border-radius: 16px;
   overflow: hidden;
   position: relative;
   flex: 1;
-  min-height: 350px; /* 从250px增加到350px */
-  max-height: calc(100vh - 80px); /* 从100px减少到80px，让视频更高 */
+  min-height: 100%;
+  max-height: calc(100vh - 100px);
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* 视频元素样式 */
+#remoteVideo {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* 保持比例，不裁剪 */
+  display: block;
+  border-radius: 16px;
+}
+
+/* 确保视频居中显示 */
 .video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  margin: auto;
 }
 
 .video-status {
@@ -199,6 +211,71 @@ body {
   display: flex;
   justify-content: center;
   gap: 12px;
+}
+
+/* 视频按钮样式 */
+.close-video-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(220, 53, 69, 0.8);
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.close-video-btn:hover {
+  background: rgba(220, 53, 69, 1);
+}
+
+.close-video-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fullscreen-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.fullscreen-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.video-container:fullscreen {
+  border-radius: 0;
+}
+
+.video-container:fullscreen .video-status {
+  display: none;
+}
+
+.video-container:fullscreen .close-video-btn {
+  display: none;
 }
 
 /* 高级设置触发按钮 */
@@ -423,208 +500,4 @@ body {
     transform: translateX(100%);
     opacity: 0;
   }
-}
-
-/* 修改容器高度计算 */
-.container {
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0px;
-}
-
-/* 修改卡片高度 */
-.card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: blur(10px);
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-  height: 100vh; /* 改为100vh */
-  max-width: none; /* 移除最大宽度限制 */
-  max-height: none; /* 移除最大高度限制 */
-  display: flex;
-  flex-direction: column;
-  border-radius: 0px;
-}
-
-/* 修改主要区域 */
-.main-area {
-  flex: 1;
-  padding: 20px; /* 减少padding */
-  overflow: hidden; /* 改为hidden避免滚动条 */
-  display: flex;
-  flex-direction: column;
-}
-
-/* 修改主要内容区域 */
-.main-content {
-  display: flex;
-  gap: 50px;
-  align-items: flex-start;
-  justify-content: center;
-  flex: 1; /* 占据剩余空间 */
-  min-height: 0; /* 允许子元素缩小 */
-}
-
-/* 修改视频区域 */
-.video-section {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  flex: 1; /* 占据剩余空间 */
-  min-height: 0; /* 允许子元素缩小 */
-}
-
-.video-title {
-  color: #333;
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 20px; /* 减少底部间距 */
-  flex-shrink: 0; /* 标题不缩小 */
-}
-
-.video-container {
-  background: #000;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-  flex: 1;
-  min-height: 350px; /* 从250px增加到350px */
-  max-height: calc(100vh - 80px); /* 从100px减少到80px，让视频更高 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-/* 调整全屏按钮位置，放回右下角 */
-.fullscreen-btn {
-  position: absolute;
-  bottom: 16px;
-  right: 16px; /* 改回右下角 */
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-/* 调整关闭按钮位置，避免与全屏按钮冲突 */
-.close-video-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px; /* 保持在右上角 */
-  background: rgba(220, 53, 69, 0.8);
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-.close-video-btn:hover {
-  background: rgba(220, 53, 69, 1);
-}
-
-.close-video-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 调整全屏按钮位置，避免与关闭按钮冲突 */
-.fullscreen-btn {
-  position: absolute;
-  bottom: 16px;
-  right: 16px; /* 改回右下角 */
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-.fullscreen-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
-}
-
-.fullscreen-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 全屏时隐藏其他元素 */
-.video-container:fullscreen {
-  border-radius: 0;
-}
-
-.video-container:fullscreen .video-status {
-  display: none;
-}
-
-/* 全屏时也隐藏关闭按钮 */
-.video-container:fullscreen .close-video-btn {
-  display: none;
-}
-
-/* 添加全屏时的特殊样式 */
-@media (min-width: 1024px) {
-  .container {
-    padding: 0;
-  }
-  
-  .card {
-    border-radius: 0;
-    height: 100vh;
-    max-width: none;
-    max-height: none;
-  }
-  
-  .main-area {
-    padding: 30px;
-  }
-  
-  .video-container {
-    min-height: 400px; /* 从300px增加到400px */
-    max-height: calc(100vh - 100px); /* 从120px减少到100px */
-  }
-}
-
-/* 修改小屏幕时的视频高度 */
-@media (max-height: 600px) {
-  .main-area {
-    padding: 15px;
-  }
-  
-  .video-container {
-    min-height: 250px; /* 从200px增加到250px */
-    max-height: calc(100vh - 60px); /* 从80px减少到60px */
-  }
-  
-  .video-title {
-    margin-bottom: 10px;
-    font-size: 20px;
-  }
-
 }
