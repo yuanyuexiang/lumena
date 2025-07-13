@@ -189,7 +189,7 @@
       }
 
       .button-grid .btn {
-        margin-bottom: 0;
+        margin-bottom: 10;
       }
 
       /* 全屏视频模式 */
@@ -233,24 +233,7 @@
     <div class="container">
       <div class="header">
         <h1>📱 Lumena 移动端</h1>
-        <p>扫码或输入房间号加入视频通话</p>
-      </div>
-      
-      <!-- 房间加入区域 -->
-      <div class="section">
-        <h3>🚪 加入房间</h3>
-        <div class="input-group">
-          <input type="text" id="roomIdInput" placeholder="输入房间号" class="input-field">
-          <button id="joinRoomBtn" class="btn primary">🚀 加入房间</button>
-        </div>
-        <div class="status-item">
-          <span class="status-label">当前房间:</span>
-          <span class="status-value" id="currentRoom">未加入</span>
-        </div>
-        <div class="status-item">
-          <span class="status-label">连接状态:</span>
-          <span class="status-value" id="connectionStatus">未连接</span>
-        </div>
+        <p>视频通话已准备就绪</p>
       </div>
       
       <!-- 视频控制区域 -->
@@ -275,9 +258,17 @@
 
       <!-- 连接状态 -->
       <div class="section">
-        <h3>📡 连接状态</h3>
+        <h3>📡 房间 & 连接状态</h3>
         <div class="status-item">
-          <span class="status-label">连接方式:</span>
+          <span class="status-label">当前房间:</span>
+          <span class="status-value" id="currentRoom">未加入</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">MQTT状态:</span>
+          <span class="status-value" id="connectionStatus">未连接</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">P2P连接:</span>
           <span class="status-value">
             <span class="connection-indicator disconnected" id="connectionIndicator"></span>
             <span id="connectionType">未连接</span>
@@ -683,47 +674,38 @@
       }, 2000);
     }
 
-    // 加入房间
-    function joinRoom() {
-      const inputRoomId = document.getElementById('roomIdInput').value.trim();
-      if (!inputRoomId) {
-        alert('请输入房间号！');
+    // 加入房间（自动执行）
+    function autoJoinRoom() {
+      if (!roomId) {
+        addLog('❌ 未获取到房间号', 'error');
         return;
       }
       
-      roomId = inputRoomId;
       document.getElementById('currentRoom').textContent = roomId;
-      
       initializeMQTT();
-      addLog(`🚪 正在加入房间: ${roomId}`);
+      addLog(`🚪 正在自动加入房间: ${roomId}`);
     }
 
     // 页面加载完成后设置事件监听器
     document.addEventListener('DOMContentLoaded', function() {
-      // 从URL获取房间号
+      // 从URL获取房间号并自动加入
       const urlRoomId = getRoomFromUrl();
       if (urlRoomId) {
         roomId = urlRoomId;
-        document.getElementById('roomIdInput').value = roomId;
         document.getElementById('currentRoom').textContent = roomId;
-        initializeMQTT();
+        autoJoinRoom();
+        addLog(`📱 通过URL获取房间号: ${roomId}`, 'success');
+      } else {
+        addLog('❌ 未从URL获取到房间号，请确保通过二维码访问', 'error');
       }
       
       // 事件监听器
-      document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
       document.getElementById('startVideoBtn').addEventListener('click', startVideo);
       document.getElementById('stopVideoBtn').addEventListener('click', stopVideo);
       document.getElementById('switchCameraBtn').addEventListener('click', switchCamera);
       document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
       document.getElementById('exitFullscreenBtn').addEventListener('click', toggleFullscreen);
       document.getElementById('fullscreenSwitchBtn').addEventListener('click', switchCamera);
-      
-      // 回车键加入房间
-      document.getElementById('roomIdInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-          joinRoom();
-        }
-      });
       
       // 阻止页面缩放
       document.addEventListener('touchmove', function(e) {
